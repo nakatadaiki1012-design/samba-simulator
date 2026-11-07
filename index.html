@@ -222,6 +222,15 @@ details.help > div{margin-top:8px;display:flex;flex-direction:column;gap:8px}
 .btn.carnival[aria-pressed="true"]{background:var(--hot);color:var(--hot-fg);border-color:transparent}
 .stage-view.street{background:#9fd6f2}
 .stage-view.street .stage-hint{color:#2b4a5c}
+.style-box{display:flex;flex-direction:column;gap:8px}
+.gchip.small{font-size:12.5px;padding:4px 12px}
+.style-desc{font-size:13.5px;color:var(--muted);max-width:72ch}
+.stage-genres.styles{margin-top:6px}
+.stage-genres.styles .gchip{font-size:11.5px;padding:3px 10px;background:color-mix(in srgb,var(--surface) 82%,transparent)}
+.stage-genres.styles .gchip[aria-pressed="true"]{background:var(--hot);color:var(--hot-fg);border-color:transparent}
+.style-now{background:var(--surface-2);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:4px}
+.style-now b{font-size:14px}
+.style-now p{font-size:13px;color:var(--muted)}
 /* compare */
 .vs{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:10px;align-items:center}
 .vs select{font-size:16px;font-weight:700;padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:var(--surface);width:100%}
@@ -329,7 +338,7 @@ footer{margin-top:40px;color:var(--muted);font-size:12px;border-top:1px solid va
       <div class="stage-view" id="stage-view">
         <canvas id="stage-canvas" aria-label="演奏者の3Dステージ"></canvas>
         <div class="stage-labels" id="stage-labels"></div>
-        <div class="stage-top"><div class="stage-genres" id="stage-genres"></div></div>
+        <div class="stage-top"><div class="stage-genres" id="stage-genres"></div><div class="stage-genres styles" id="stage-styles"></div></div>
         <div class="stage-bottom" id="stage-transport"></div>
         <p class="stage-hint">ドラッグで回転／演奏者をタップ</p>
       </div>
@@ -359,6 +368,7 @@ footer{margin-top:40px;color:var(--muted);font-size:12px;border-top:1px solid va
   <section class="panel" id="panel-genres" data-panel="genres" hidden>
     <div class="genre-pick" id="genre-pick"></div>
     <div class="gname" id="gname"></div>
+    <div class="style-box"><div class="chips" id="style-pick"></div><p class="style-desc" id="style-desc"></p></div>
     <div class="transport" id="genre-transport"></div>
     <div id="genre-grid" class="grid"></div>
     <div class="gdetail" id="gdetail">
@@ -500,10 +510,19 @@ function chordPlay(t,ch,opts,stagger){
   voicing(ch,opts.base).forEach((m,k)=>note(t+k*(stagger||0),{...opts,midi:m}));
 }
 const BASS_OFF = ch => ({"1":0,"3":ch.iv[1],"5":7,"8":12});
+/* 数字＝和音に合った音階の何番目の音か（1=根音、3=3度、5=5度、8=1オクターブ上…） */
+function degOff(c,ch){
+  const sc = ch.iv.includes(3) ? [0,2,3,5,7,9,10] : ch.iv.includes(10) ? [0,2,4,5,7,9,10] : [0,2,4,5,7,9,11];
+  if(c>="1" && c<="7") return sc[+c-1];
+  return {"8":12,"9":14,"0":sc[2]+12,v:-5}[c] ?? null;
+}
+function lineMidi(c,i,base){ const d = degOff(c,i.chord); if(d==null) return null; let r = i.chord.root; if(r>7) r -= 12; return (i.base??base)+r+d; }
 
 /* 楽器ごとの音とマスの記号
    fam … 色分けのグループ / cycle … マスをタップしたときの切り替え順 / legend … 記号の意味 */
-const GLYPH = {o:"●",x:"•",m:"×",h:"▲",l:"▼",s:"✱",L:"━",c:"◆",q:"★","1":"1","3":"3","5":"5","8":"8"};
+const GLYPH = {o:"●",x:"•",m:"×",h:"▲",l:"▼",s:"✱",L:"━",c:"◆",q:"★",v:"v"};
+const DEG_LEG = {"1":"根音（ド）","2":"2度","3":"3度","4":"4度","5":"5度","6":"6度","7":"7度","8":"1オクターブ上の根音","9":"上の2度","0":"上の3度",v:"下の5度"};
+const LINE_CH = "1234567890v";
 function surdo(f){ return {fam:"low",cycle:[".","m","o"],legend:{m:"ミュート（手で押さえて短く）",o:"オープン（響かせる）",x:"弱く"},weak:["m","x"],
   play(t,c,v){
     if(c==="m"){ tone(t,{f:f*1.6,f2:f,dur:0.13,vol:0.5*v,pt:0.04}); noise(t,{dur:0.03,vol:0.08*v,type:"lowpass",f:900}); }
@@ -540,9 +559,9 @@ const INST = {
     play(t,c,v,i){ const d=Math.min(0.3,i.gap*i.sd*0.8); chordPlay(t,i.chord,{base:64,dur:d,type:"square",vol:0.04*v,cut:2400,att:0.01}); chordPlay(t,i.chord,{base:64,dur:d,type:"sawtooth",vol:0.035*v,cut:2400,att:0.01,detune:12}); }},
   bandoneon:{fam:"harm",cycle:[".","x","o"],legend:{x:"短く刻む（マルカート）",o:"強く"},weak:[],
     play(t,c,v,i){ const a = c==="o"?1.25:1; const d=Math.min(0.32,i.gap*i.sd*0.8); chordPlay(t,i.chord,{base:57,dur:d,type:"sawtooth",vol:0.06*v*a,cut:1500,att:0.012}); chordPlay(t,i.chord,{base:57,dur:d,type:"sawtooth",vol:0.04*v*a,cut:1500,att:0.012,detune:-10}); }},
-  bass:{fam:"harm",cycle:[".","1","5","3","8"],legend:{"1":"根音（コードの土台の音）","5":"5度の音","3":"3度の音","8":"1オクターブ上"},weak:[],
-    play(t,c,v,i){ const off = BASS_OFF(i.chord)[c] ?? 0; let r=i.chord.root; if(r>7) r-=12; const d=Math.min(1.1,i.gap*i.sd*0.92);
-      note(t,{midi:40+r+off,dur:d,type:"triangle",vol:0.42*v,cut:900,att:0.006}); note(t,{midi:40+r+off,dur:d,type:"sine",vol:0.3*v,att:0.006}); }},
+  bass:{fam:"harm",cycle:[".","1","5","3","8","v"],legend:{"1":"根音（コードの土台の音）","5":"5度の音","3":"3度の音","8":"1オクターブ上"},weak:[],
+    play(t,c,v,i){ const m = lineMidi(c,i,40); if(m==null) return; const d=Math.min(1.1,i.gap*i.sd*0.92);
+      note(t,{midi:m,dur:d,type:"triangle",vol:0.42*v,cut:900,att:0.006}); note(t,{midi:m,dur:d,type:"sine",vol:0.3*v,att:0.006}); }},
   clave:{fam:"high",cycle:[".","x"],legend:{x:"カッ"},weak:[],
     play(t,c,v){ tone(t,{f:2500,dur:0.06,vol:0.42*v}); tone(t,{f:2500*1.5,dur:0.03,type:"triangle",vol:0.08*v}); }},
   rim:{fam:"high",cycle:[".","x"],legend:{x:"リム（ふちを叩く）"},weak:[],
@@ -583,6 +602,18 @@ const INST = {
       else { tone(t,{f:950,dur:0.03,type:"triangle",vol:0.25*v}); noise(t,{dur:0.03,vol:0.13*v,type:"highpass",f:3000}); } }},
   llamador:{fam:"low",cycle:[".","x"],legend:{x:"ポン"},weak:[],
     play(t,c,v){ tone(t,{f:150,f2:115,dur:0.22,vol:0.6*v,pt:0.04}); }},
+  flute:{fam:"harm",cycle:[".","1","3","5","8"],legend:{},weak:[],
+    play(t,c,v,i){ const m = lineMidi(c,i,72); if(m==null) return; note(t,{midi:m,dur:Math.min(0.9,i.gap*i.sd*0.95),type:"sine",vol:0.16*v,att:0.03}); }},
+  violin:{fam:"harm",cycle:[".","x","1","3","5","8"],legend:{x:"和音の刻み"},weak:[],
+    play(t,c,v,i){ if(c==="x"){ chordPlay(t,i.chord,{base:67,dur:0.16,type:"sawtooth",vol:0.04*v,cut:2600,att:0.01}); return; } const m = lineMidi(c,i,67); if(m==null) return; note(t,{midi:m,dur:Math.min(1,i.gap*i.sd*0.95),type:"sawtooth",vol:0.06*v,cut:2400,att:0.04}); }},
+  sax:{fam:"harm",cycle:[".","x","1","3","5","8"],legend:{x:"和音"},weak:[],
+    play(t,c,v,i){ if(c==="x"){ chordPlay(t,i.chord,{base:62,dur:0.18,type:"square",vol:0.035*v,cut:1800,att:0.01}); return; } const m = lineMidi(c,i,62); if(m==null) return; note(t,{midi:m,dur:Math.min(0.8,i.gap*i.sd*0.95),type:"square",vol:0.06*v,cut:1800,att:0.02}); }},
+  clap:{fam:"high",cycle:[".","x"],legend:{x:"パン"},weak:[],
+    play(t,c,v){ for(let k=0;k<3;k++) noise(t+k*0.009,{dur:0.03+k*0.02,vol:0.3*v,type:"bandpass",f:1300,q:1.2}); }},
+  cajon:{fam:"mid",cycle:[".","x","o","s"],legend:{x:"弱く",o:"低い音（中央）",s:"高い音（ふち）"},weak:["x"],
+    play(t,c,v){ if(c==="o") tone(t,{f:110,f2:70,dur:0.25,vol:0.6*v,pt:0.04}); else { noise(t,{dur:0.06,vol:(c==="s"?0.35:0.18)*v,type:"bandpass",f:2200,q:0.8}); tone(t,{f:220,dur:0.04,vol:0.12*v}); } }},
+  ride:{fam:"shake",cycle:[".","x","o"],legend:{x:"シンバル",o:"ベル（中心）"},weak:["x"],
+    play(t,c,v){ noise(t,{dur:c==="o"?0.5:0.35,vol:0.1*v,type:"highpass",f:6000}); }},
   click:{fam:"shake",cycle:[".","x"],legend:{x:"拍"},weak:["x"],
     play(t,c,v){ tone(t,{f:1200,dur:0.025,vol:0.12*v}); }},
 };
@@ -636,6 +667,9 @@ function chordS(pre,ch,base,t,v,o,stagger){
   return ok;
 }
 const ENS = {surdo1:2,surdo2:2,surdo3:1,caixa:3,tamborim:3,chocalho:3,repique:1,agogo:1,cuica:1};
+/* メロディ・ベースラインを弾ける楽器（録音の種類と基準の高さ） */
+const LINE = {bass:{pre:"bas",base:40},piano:{pre:"pno",base:60,oct:true},guitar:{pre:"gtr",base:52},brass:{pre:"tpt",base:60},
+  accordion:{pre:"acc",base:64},bandoneon:{pre:"acc",base:57},flute:{pre:"flt",base:72},violin:{pre:"vln",base:67},sax:{pre:"sax",base:62},cavaco:{pre:"cav",base:67}};
 /* 楽器ごとに、どの録音をどう鳴らすか */
 const SMAP = {
   surdo1:(t,c,v,i)=>surdoS(t,c,v,i,0.6), surdo2:(t,c,v,i)=>surdoS(t,c,v,i,0.7), surdo3:(t,c,v,i)=>surdoS(t,c,v,i,0.82),
@@ -649,13 +683,19 @@ const SMAP = {
     if(c==="l"){ hit("d:E4",t,v*0.8,{rate:0.82,dur:0.3,pan:i.pan}); return hit("d:Gb3",t,v*0.12,{dur:0.08,pan:i.pan}); }
     if(c==="h"){ hit("d:D4",t,v*0.55,{rate:1.1,pan:i.pan}); return hit("d:Gb3",t,v*0.4,{dur:0.12,pan:i.pan}); }
     return hit("d:Gb3",t,v*0.26,{dur:0.07,pan:i.pan}); },
-  cavaco:(t,c,v,i)=>chordS("cav",i.chord,67,t,v*0.3,{dur:0.2,pan:i.pan},0.012),
-  guitar:(t,c,v,i)=>chordS("gtr",i.chord,57,t,v*0.32,{dur:Math.min(0.9,i.gap*i.sd*0.95),pan:i.pan},0.014),
-  piano:(t,c,v,i)=>{ const d=Math.min(1.2,i.gap*i.sd*0.95); chordS("pno",i.chord,64,t,v*0.3,{dur:d,pan:i.pan}); return chordS("pno",i.chord,76,t,v*0.18,{dur:d,pan:i.pan}); },
-  brass:(t,c,v,i)=>chordS("brs",i.chord,67,t,v*0.32,{dur:c==="o"?Math.min(0.8,i.gap*i.sd):0.16,pan:i.pan}),
+  cavaco:(t,c,v,i)=>chordS(i.smp||"cav",i.chord,67,t,v*0.3,{dur:0.2,pan:i.pan},0.012),
+  guitar:(t,c,v,i)=>chordS(i.smp||"gtr",i.chord,57,t,v*0.32,{dur:Math.min(0.9,i.gap*i.sd*0.95),pan:i.pan},0.014),
+  piano:(t,c,v,i)=>{ const d=Math.min(1.2,i.gap*i.sd*0.95), pre=i.smp||"pno"; chordS(pre,i.chord,64,t,v*0.3,{dur:d,pan:i.pan}); return pre==="pno" ? chordS(pre,i.chord,76,t,v*0.18,{dur:d,pan:i.pan}) : true; },
+  brass:(t,c,v,i)=>chordS(i.smp||"brs",i.chord,67,t,v*0.32,{dur:c==="o"?Math.min(0.8,i.gap*i.sd):0.16,pan:i.pan}),
+  violin:(t,c,v,i)=>chordS("vln",i.chord,67,t,v*0.2,{dur:0.18,pan:i.pan},0.006),
+  sax:(t,c,v,i)=>chordS("sax",i.chord,62,t,v*0.26,{dur:c==="o"?Math.min(0.8,i.gap*i.sd):0.18,pan:i.pan}),
+  flute:()=>false,
+  clap:(t,c,v,i)=>hit("d:Eb2",t,v*0.7,{pan:i.pan,ens:2}),
+  cajon:(t,c,v,i)=>c==="o" ? hit("d:A2",t,v*0.85,{rate:0.7,dur:0.35,pan:i.pan}) : hit("d:D4",t,v*(c==="s"?0.7:0.35),{rate:0.72,pan:i.pan}),
+  ride:(t,c,v,i)=>hit(c==="o"?"d:F3":"d:Eb3",t,v*0.4,{dur:c==="o"?0.6:0.45,pan:i.pan}),
   accordion:(t,c,v,i)=>chordS("acc",i.chord,64,t,v*0.26,{dur:Math.min(0.32,i.gap*i.sd*0.8),pan:i.pan}),
   bandoneon:(t,c,v,i)=>chordS("acc",i.chord,57,t,v*(c==="o"?0.36:0.28),{dur:Math.min(0.3,i.gap*i.sd*0.8),rate:1,pan:i.pan}),
-  bass:(t,c,v,i)=>{ const off = BASS_OFF(i.chord)[c] ?? 0; let r=i.chord.root; if(r>7) r-=12; return pitched("bas",40+r+off,t,v*0.9,{dur:Math.min(1.1,i.gap*i.sd*0.92),pan:0}); },
+  bass:()=>false,
   clave:(t,c,v,i)=>hit("d:Eb5",t,v*0.85,{pan:i.pan}),
   rim:(t,c,v,i)=>hit("d:Db2",t,v*0.75,{dur:0.18,pan:i.pan}),
   palitos:(t,c,v,i)=>hit("d:E5",t,v*(c==="o"?0.8:0.5),{rate:1.1,pan:i.pan}),
@@ -664,7 +704,7 @@ const SMAP = {
     return hit(m[0],t,v*m[1],{rate:m[2],dur:c==="h"?0.08:undefined,pan:i.pan}); },
   bongo:(t,c,v,i)=>hit(c==="l"?"d:Db4":"d:C4",t,v*(c==="x"?0.5:0.85),{pan:i.pan}),
   cowbell:(t,c,v,i)=>hit("d:Ab3",t,v*(c==="h"?0.7:0.45),{rate:c==="h"?1:0.82,pan:i.pan}),
-  timbale:(t,c,v,i)=>c==="c" ? hit("d:Db2",t,v*0.45,{rate:1.7,dur:0.07,pan:i.pan}) : hit("d:F4",t,v*0.8,{pan:i.pan}),
+  timbale:(t,c,v,i)=>c==="l" ? hit("d:Gb4",t,v*0.8,{pan:i.pan}) : c==="c" ? hit("d:Db2",t,v*0.45,{rate:1.7,dur:0.07,pan:i.pan}) : hit("d:F4",t,v*0.8,{pan:i.pan}),
   guiro:(t,c,v,i)=>hit(c==="L"?"d:D5":"d:Db5",t,v*0.75,{pan:i.pan}),
   guira:(t,c,v,i)=>hit("d:A4",t,v*(c==="L"?0.7:0.5),{rate:c==="L"?0.85:1.15,pan:i.pan}),
   maracas:(t,c,v,i)=>hit("d:Bb4",t,v*(c==="o"?0.7:0.42),{pan:i.pan}),
@@ -680,11 +720,21 @@ function surdoS(t,c,v,i,rate){
   tone(t,{f:rate*95,f2:rate*80,dur:0.5,vol:0.35*v,pt:0.06});
   return hit("d:F2",t,v*(c==="x"?0.6:1),{rate,dur:0.9,pan:i.pan,ens:i.ens});
 }
+const LINE_VOL = {bass:0.9,piano:0.32,guitar:0.4,brass:0.38,accordion:0.32,bandoneon:0.36,flute:0.38,violin:0.32,sax:0.36,cavaco:0.3};
 Object.keys(SMAP).forEach(id=>{
   const orig = INST[id].play;
   INST[id].play = (t,c,v,info)=>{
     info = info||{};
     if(info.ens==null) info.ens = ENS[id]||1;
+    if(LINE[id] && LINE_CH.includes(c)){
+      const L = LINE[id], m = lineMidi(c,info,L.base);
+      if(m==null) return;
+      const d = Math.min(id==="bass"?1.1:0.95,(info.gap||2)*(info.sd||0.15)*0.95), pre = info.smp||L.pre, lv = v*LINE_VOL[id];
+      let ok = pitched(pre,m,t,lv,{dur:d,pan:id==="bass"?0:info.pan});
+      if(ok && L.oct) pitched(pre,m+12,t,lv*0.7,{dur:d,pan:info.pan});
+      if(!ok){ if(id==="bass"||id==="flute"||id==="violin"||id==="sax") orig(t,c,v,info); else note(t,{midi:m,dur:d,type:"triangle",vol:0.12*v,cut:2600,att:0.005}); }
+      return;
+    }
     let ok = false;
     try{ ok = SMAP[id](t,c,v,info); }catch(e){ ok = false; }
     if(!ok) orig(t,c,v,info);
@@ -876,6 +926,317 @@ const GENRES = [
     {inst:"bass",name:"ベース",role:"低く長い音",p:"1.....1.1.....1.",vol:0.85}]},
 ];
 const GENRE = Object.fromEntries(GENRES.map(g=>[g.id,g]));
+/* ================================================================
+   2b. 各ジャンルのスタイル（同じジャンルの中のバリエーション）
+   p＝基本パターン / fill＝4周目のフィル / pool＝即興（毎周どれかを選ぶ）
+   数字は和音に合わせた音（1=根音、3=3度、5=5度、8=1オクターブ上）
+   ================================================================ */
+const TR = (inst,name,role,p,vol,x)=>({inst,name,role,p,vol:vol??0.8,...(x||{})});
+const SP = id=>SAMBA_PARTS.find(s=>s.id===id);
+const SB = (id,x)=>{ const s = SP(id); return TR(s.inst,s.name,s.role,s.variants[0].p,s.vol,x); };
+const STYLES = {
+  samba:[
+    {n:"カーニバル（エンヘード）",d:"エスコーラ・ジ・サンバが大通りを行進する時の、数百人の打楽器隊（バテリア）のサンバ。スルド3番とクイーカは毎周少しずつ変わり、4周目にはヘピーキが合図のフレーズを入れます。",
+     bpm:136,spb:4,swing:0.28,prog:["C6","A7","Dm7","G7"],tracks:[
+      SB("surdo1"),SB("surdo2"),SB("surdo3",{pool:SP("surdo3").variants.map(v=>v.p)}),
+      SB("caixa",{fill:"oxxxoxxxoxoxoooo"}),SB("repique",{fill:"o.oo.oo.o.o.oooo"}),
+      SB("tamborim",{fill:"xxxoxxxoxxxoxxxo"}),SB("agogo"),SB("chocalho"),SB("cuica",{pool:SP("cuica").variants.map(v=>v.p)})]},
+    {n:"パゴーヂ（輪になって歌う）",d:"1980年代のリオで、テーブルを囲んで少人数で歌い演奏するスタイル。手で叩く太鼓（タンタン、ヘピーキ・ジ・マォン）とバンジョー、7弦ギターが特徴で、7弦ギターは4周目に低音のメロディ（バイシャリア）を弾きます。",
+     bpm:98,spb:4,swing:0.22,prog:["Dm7","G7","C6","A7"],tracks:[
+      TR("pandeiro","パンデイロ","主役のタンバリン","lxhxlxhxlxhxlxhx",0.8),
+      TR("conga","タンタン","低い手太鼓・2拍目","m...l..mm...l.m.",0.85),
+      TR("bongo","ヘピーキ・ジ・マォン","手で叩く高い太鼓","x.ox.xo.x.ox.xox",0.6,{pool:["xxoxx.o.x.ox.xo."]}),
+      TR("tamborim","タンボリン","テレコテコ","x.xx.x.x.xx.x.x.",0.5),
+      TR("cavaco","バンジョー","歯切れのよい和音","x.xx.x.x.xx.x.x.",0.7),
+      TR("guitar","7弦ギター","和音","x..x.x..x..x.x..",0.55),
+      TR("bass","7弦ギターの低音","低音のメロディ（バイシャリア）","1...5...1...5...",0.85,{smp:"gtr",fill:"1...5.4.3.2.1.v."})]},
+    {n:"サンバ・ヘギ（バイーア）",d:"1980年代にサルヴァドール（バイーア州）のオロドゥンなどが生んだ、サンバとレゲエの融合。4拍子でゆったり重く、スルドが3台で会話するように叩きます。",
+     bpm:100,spb:4,barSteps:16,swing:0.1,prog:["C"],tracks:[
+      TR("surdo1","スルド（フンド1）","いちばん低い・4拍目","....m.......o...",0.95),
+      TR("surdo2","スルド（フンド2）","1拍目と3拍目","o.......o.o.....",0.85),
+      TR("surdo3","スルド（ドブラ）","合いの手","..o.o...o...o.o.",0.75,{pool:["..o.o.o...o.o.o."]}),
+      TR("caixa","カイシャ","レゲエ風の刻み","x.xox.xox.xox.xo",0.7),
+      TR("repique","ヘピーキ（ティンバウ）","3+3+2のリズム","o..o..o.x.x.o.x.",0.7,{fill:"o.oo.oo.o.oooooo"})]},
+    {n:"サンバ・ジ・ホーダ（ルーツ）",d:"バイーア地方に伝わる、サンバの原型の1つ。輪になって手拍子をし、真ん中で1人ずつ踊ります。皿をナイフでこする「プラト・イ・ファカ」など、身近な道具も楽器になります。",
+     bpm:112,spb:4,swing:0.15,prog:["C","G7"],tracks:[
+      TR("clap","手拍子（パウマス）","3+3+2","x..x..x.x..x..x.",0.7),
+      TR("pandeiro","パンデイロ","タンバリン","lxhxlxhxlxhxlxhx",0.7),
+      TR("conga","アタバキ","太鼓（即興）","o..s.o.so..s.oo.",0.8,{pool:["o.ss.o..o..s.o.s"]}),
+      TR("guira","プラト・イ・ファカ","皿をナイフでこする","xxLxxxLxxxLxxxLx",0.6),
+      TR("cavaco","ヴィオラ","弦楽器","x.xx.x.x.xx.x.x.",0.6)]},
+  ],
+  bossa:[
+    {n:"バンド（ドラム＋ギター）",d:"ドラマーがブラシとリムで静かにサンバのリズムをたたき、ギターとベース、ピアノが柔らかく和音を重ねる、よく知られた編成です。",
+     bpm:118,spb:4,swing:0.12,prog:["Cmaj7","A7","Dm7","G7"],tracks:[
+      TR("rim","リム（クロススティック）","ボサノバ・クラーベ","x..x..x...x..x..",0.8),
+      TR("kick","バスドラム","スルドの代わり","x..xx..xx..xx..x",0.5),
+      TR("maracas","シェイカー／ブラシ","やさしく刻む","x.x.x.x.x.x.x.x.",0.55),
+      TR("guitar","ギター","コードでリズムを作る","x.x..x.x.x..x.x.",0.85),
+      TR("piano","ピアノ","ときどき和音","....x......x....",0.45),
+      TR("bass","ベース","根音と5度","1...5...1...5...",0.8)]},
+    {n:"ギター弾き語り（バチーダ）",d:"ジョアン・ジルベルトが確立した、ギター1本でサンバの打楽器隊を表す弾き方「バチーダ」。親指がスルドのように低音を、ほかの指がタンボリンのように和音を刻みます。",
+     bpm:112,spb:4,swing:0.1,prog:["Cmaj7","C6","Dm7","G7"],tracks:[
+      TR("guitar","ギター（指）","和音（バチーダ）","x..x..x...x..x..",0.9),
+      TR("guitar","ギター（親指）","低音","1...5...1...5...",0.8,{base:40}),
+      TR("maracas","シェイカー","ごく小さく","x.x.x.x.x.x.x.x.",0.3)]},
+    {n:"ジャズ・ボサ（サックス入り）",d:"1960年代にアメリカのジャズ奏者たちが取り入れたボサノバ。ライドシンバルとサックスのメロディが入り、少し速く都会的になります。",
+     bpm:132,spb:4,swing:0.1,prog:["Dm7","G7","Cmaj7","A7"],tracks:[
+      TR("ride","ライドシンバル","8分音符","x.x.x.x.x.x.x.x.",0.6),
+      TR("rim","リム","ボサノバ・クラーベ","x..x..x...x..x..",0.6),
+      TR("kick","バスドラム","低音","x..xx..xx..xx..x",0.4),
+      TR("piano","ピアノ","和音","..x.....x..x....",0.5),
+      TR("sax","サックス","メロディ","5...3.2.1...2.3.",0.7,{pool:["8.7.5...6.5.3..."]}),
+      TR("bass","ベース","動くベース","1..5.3..1..5.6..",0.8)]},
+  ],
+  son:[
+    {n:"セプテート（1920〜30年代）",d:"ハバナで大流行したころの7人編成。トレスがくり返しの伴奏型（グアヘオ）を弾き、トランペットが合いの手を入れます。ボンゴは毎周少しずつ変化をつけます。",
+     bpm:100,spb:2,prog:["C","G7"],tracks:[
+      TR("clave","クラベス","ソン・クラーベ（3-2）","x..x..x...x.x...",0.85),
+      TR("bongo","ボンゴ","マルティージョ","xxxoxxxlxxxoxxxl",0.7,{pool:["xxxoxxolxxxoxlol"]}),
+      TR("maracas","マラカス","8分音符","oxoxoxoxoxoxoxox",0.55),
+      TR("guitar","トレス","グアヘオ（くり返しの伴奏）","1.53.5.8.53.1.5.",0.85),
+      TR("brass","トランペット","合いの手","....5.8.7.5.....",0.55,{smp:"tpt",pool:["........5.3.1..."]}),
+      TR("bass","ベース","先取りのベース","...5..1....5..1.",0.85)]},
+    {n:"ソン・モントゥーノ（1940年代〜）",d:"アルセニオ・ロドリゲスがコンガ、ピアノ、複数のトランペットを加えた形。後半の盛り上がり（モントゥーノ）でボンゴ奏者がカウベルに持ち替えます。サルサの直接の祖先です。",
+     bpm:112,spb:2,prog:["C","F","G7","F"],tracks:[
+      TR("clave","クラベス","ソン・クラーベ（2-3）","..x.x...x..x..x.",0.7),
+      TR("cowbell","カウベル","ボンゴ奏者のベル","h.lhh.l.h.lhh.ll",0.7),
+      TR("conga","コンガ","トゥンバオ","hmsmhmoohmsmhmoo",0.8),
+      TR("piano","ピアノ","モントゥーノ","8.53.8.53.5.8.53",0.7),
+      TR("guitar","トレス","グアヘオ",".5.8.5.3.5.8.5.3",0.6),
+      TR("brass","トランペット隊","リフ","..x.x...x..x..o.",0.75,{fill:"x.x.x.x.o...o..."}),
+      TR("bass","ベース","先取りのベース","...5..1....5..1.",0.85)]},
+  ],
+  mambo:[
+    {n:"ペレス・プラード風ビッグバンド",d:"1950年前後にメキシコから世界へ広まった、派手なビッグバンドのマンボ。トランペットの鋭いキメと、サックスの低い合いの手の掛け合いが特徴です。4周目にはティンバレスが連打で盛り上げます。",
+     bpm:186,spb:2,prog:["C","G7"],tracks:[
+      TR("clave","クラベス","ソン・クラーベ（2-3）","..x.x...x..x..x.",0.65),
+      TR("cowbell","カウベル","4分音符で引っ張る","h.l.h.l.h.l.h.l.",0.75),
+      TR("timbale","ティンバレス","カスカラ","c.c.cc.cc.cc.c.c",0.65,{fill:"c.c.cc.co.o.oooo"}),
+      TR("conga","コンガ","トゥンバオ","hmsmhmoohmsmhmoo",0.8),
+      TR("piano","ピアノ","裏で刻む",".x.x.xx..x.x.xx.",0.6),
+      TR("brass","ブラス","リフ（キメ）","..x.x...x..x..o.",0.9,{fill:"x.x.x.x.o...o..."}),
+      TR("sax","サックス","低い合いの手","1.3.5.3.1...5.8.",0.6),
+      TR("bass","ベース","先取りのベース","...5..1....5..1.",0.85)]},
+    {n:"ダンソンの「マンボ」（始まりの形）",d:"1930年代末、カチャオ兄弟が上品な舞曲ダンソンの最後に付けた、くり返しで盛り上がる部分。フルートとヴァイオリンの「チャランガ」編成で、フルートが毎周即興します。",
+     bpm:118,spb:2,prog:["F","C7"],tracks:[
+      TR("guiro","ギロ","ギーッ・チャチャ","L.xxL.xxL.xxL.xx",0.7),
+      TR("timbale","パイラ（ティンバル）","カスカラ","c.c.cc.cc.cc.c.c",0.6),
+      TR("conga","コンガ","トゥンバオ","hmsmhmoohmsmhmoo",0.75),
+      TR("violin","ヴァイオリン","和音の刻み",".x.x..x..x.x..x.",0.7),
+      TR("piano","ピアノ","モントゥーノ","8.53.8.53.5.8.53",0.6),
+      TR("flute","フルート","即興のメロディ","8.5.6.8...5.3.2.",0.75,{pool:["5.6.8.9.8.5.....","8...9.8.6.5.3.5."]}),
+      TR("bass","ベース","先取りのベース","...5..1....5..1.",0.85)]},
+    {n:"ニューヨーク・パラディアム",d:"1950年代ニューヨークのダンスホール「パラディアム」で、ティト・プエンテらが演奏した激しいマンボ。ティンバレス奏者が「マンボ・ベル」を叩き、トランペットとトロンボーンが掛け合います。",
+     bpm:204,spb:2,prog:["Cm","G7"],tracks:[
+      TR("cowbell","マンボ・ベル","ティンバレス奏者のベル","h.hlh.lhh.hlh.lh",0.7),
+      TR("cowbell","ボンゴ・ベル","4分音符","h.l.h.l.h.l.h.l.",0.55),
+      TR("timbale","ティンバレス","キメ","o.......o.o.o...",0.6,{fill:"o.o.oo.oo.oooooo"}),
+      TR("conga","コンガ","2台のトゥンバオ","hmsmhmolhmsmhmol",0.8),
+      TR("piano","ピアノ","裏で刻む",".x.x.xx..x.x.xx.",0.55),
+      TR("brass","トランペット","リフ","x..x..x.....x.x.",0.85),
+      TR("brass","トロンボーン","低いリフ","1.1.3...5.5.3...",0.7,{smp:"trb",base:48}),
+      TR("bass","ベース","先取りのベース","...5..1....5..1.",0.85)]},
+  ],
+  chacha:[
+    {n:"チャランガ（フルートとヴァイオリン）",d:"エンリケ・ホリンが作った、もともとのチャチャチャ。フルートが歌い、ヴァイオリンが「チャ・チャ・チャ」と刻みます。",
+     bpm:118,spb:2,prog:["C","G7"],tracks:[
+      TR("guiro","ギロ","ギーッ・チャチャ","L.xxL.xxL.xxL.xx",0.8),
+      TR("cowbell","カウベル","4分音符","h.h.h.h.h.h.h.h.",0.6),
+      TR("conga","コンガ","4拍目で「チャ・チャ」","hmsmhmoohmsmhmoo",0.8),
+      TR("timbale","パイラ（ティンバル）","カスカラ","c.c.c.ccc.c.c.cc",0.5),
+      TR("violin","ヴァイオリン","チャ・チャ・チャの刻み","x...x.xxx...x.xx",0.65),
+      TR("piano","ピアノ","4拍目で連打","x.x.x.xxx.x.x.xx",0.55),
+      TR("flute","フルート","メロディ","3.5.8...7.5.3...",0.7,{pool:["5.5.6.5.3...2.1."]}),
+      TR("bass","ベース","1拍目と3拍目＋チャチャ","1...5.551...5.55",0.85)]},
+    {n:"社交ダンスのチャチャ",d:"社交ダンスで使われる、拍がはっきりしたチャチャ。「2・3・4&1」のステップに合わせて、4拍目の「チャ・チャ」が強調されます。",
+     bpm:124,spb:2,prog:["Am","Dm","E7","Am"],tracks:[
+      TR("cowbell","カウベル","拍を刻む","h.l.h.l.h.l.h.l.",0.6),
+      TR("conga","コンガ","4拍目で「チャ・チャ」","hmsmhmoohmsmhmoo",0.8),
+      TR("guiro","ギロ","刻み","L.xxL.xxL.xxL.xx",0.6),
+      TR("guitar","ギター","チャ・チャ・チャ","x.x.x.xxx.x.x.xx",0.7),
+      TR("piano","ピアノ","のばす和音","x.......x.......",0.4),
+      TR("bass","ベース","チャチャ","1...5.551...5.55",0.85)]},
+  ],
+  rumba:[
+    {n:"グァグァンコー",d:"いちばん有名なルンバ。男女のカップルが駆け引きするように踊ります。高い太鼓キントは毎周即興で、ほかの太鼓との会話を作ります。",
+     bpm:104,spb:2,prog:["C"],tracks:[
+      TR("clave","クラベス","ルンバ・クラーベ（3-2）","x..x...x..x.x...",0.85),
+      TR("palitos","パリートス","木の棒で刻む","x.xx.x.xx.x.xx.x",0.7),
+      TR("conga","セグンド","中くらいのコンガ","m.s.mo.om.s.m.o.",0.8),
+      TR("conga","トゥンバ","低いコンガ","m.....l.m.....ll",0.85),
+      TR("conga","キント","高いコンガ（即興）","....q..q....qq.q",0.7,{pool:["..q...q.q.q.....","q..q...qq...q.q.","......q..q.q.qq."]})]},
+    {n:"ヤンブー（ゆっくり・木箱で）",d:"年配の人も踊る、ゆったりしたルンバ。昔は港の木箱（カホン）を叩いて演奏されていました。",
+     bpm:82,spb:2,prog:["C"],tracks:[
+      TR("clave","クラベス","ルンバ・クラーベ（3-2）","x..x...x..x.x...",0.85),
+      TR("palitos","パリートス","木の棒で刻む","x.xx.x.xx.x.xx.x",0.6),
+      TR("cajon","カホン（低い箱）","土台","o.....s.o..s..s.",0.85),
+      TR("cajon","カホン（高い箱）","合いの手","x.s.x.s.xxs.x.s.",0.6),
+      TR("conga","キント","即興","........q..q.q..",0.6,{pool:["q.....q.....q...","....q.q.q......."]})]},
+    {n:"コルンビア（6/8拍子・速い）",d:"マタンサス州の農村で生まれた、男性1人が力強く踊るルンバ。6/8拍子（1拍を3つに分ける）で、アフリカの儀式音楽に近いベルのリズムが鳴り続けます。",
+     bpm:112,spb:3,len:12,barSteps:12,prog:["C"],tracks:[
+      TR("cowbell","グアタカ（くわの刃）","6/8のベル","h.h.hh.h.h.h",0.65),
+      TR("clave","クラベス","6/8のクラーベ","x.x..x.x.x..",0.8),
+      TR("conga","セグンド","中くらいのコンガ","o..o..m.mo..",0.75),
+      TR("conga","トゥンバ","低いコンガ","..l..l.....l",0.85),
+      TR("conga","キント","即興","q..q.q......",0.7,{pool:["....q..qq.q.","q.q...q...qq"]})]},
+  ],
+  ballroom:[
+    {n:"社交ダンスのルンバ",d:"社交ダンス（ラテン部門）で踊られるルンバ。ゆっくりでロマンチックな曲に、打楽器がそっと寄り添います。",
+     bpm:104,spb:2,prog:["Am","Dm","E7","Am"],tracks:[
+      TR("clave","クラベス","ソン・クラーベ（3-2）","x..x..x...x.x...",0.45),
+      TR("bongo","ボンゴ","マルティージョ","xxxoxxxlxxxoxxxl",0.5),
+      TR("maracas","マラカス","8分音符","x.x.x.x.x.x.x.x.",0.5),
+      TR("conga","コンガ","ゆったり","h.m.ho.oh.m.ho.o",0.6),
+      TR("violin","ストリングス","メロディ","5.......3...2...",0.55),
+      TR("piano","ピアノ","のばす和音","x.......x.......",0.7),
+      TR("bass","ベース","1拍目から","1..5..5.1..5..5.",0.8)]},
+    {n:"ボレロ（ルーツの1つ）",d:"キューバ生まれのゆっくりした恋の歌。メキシコのトリオ・ロス・パンチョスなどが広め、高い音のギター「レキント」の分散和音が特徴です。",
+     bpm:80,spb:2,prog:["Am","Dm","E7","Am"],tracks:[
+      TR("guitar","レキント（高音ギター）","分散和音","1.3.5.8.5.3.1.5.",0.7,{base:64}),
+      TR("guitar","ギター（伴奏）","和音","x..xx.x.x..xx.x.",0.6),
+      TR("maracas","マラカス","ボレロの刻み","x.xxx.x.x.xxx.x.",0.5),
+      TR("bongo","ボンゴ","やさしく","xxxoxxxlxxxoxxxl",0.45),
+      TR("bass","ベース","根音と5度","1...5...1...5...",0.8)]},
+  ],
+  salsa:[
+    {n:"歌の部分（ベルなし）",d:"サルサの曲は前半が歌、後半が合唱との掛け合い（モントゥーノ）です。歌の部分では、ボンゴは指でマルティージョを、ティンバレスは胴でカスカラを叩きます。",
+     bpm:188,spb:2,prog:["C","F","G7","F"],tracks:[
+      TR("clave","クラベス","ソン・クラーベ（2-3）","..x.x...x..x..x.",0.65),
+      TR("timbale","ティンバレス","カスカラ","c.c.cc.cc.cc.c.c",0.6),
+      TR("bongo","ボンゴ","マルティージョ","xxxoxxxlxxxoxxxl",0.65),
+      TR("conga","コンガ","2台のトゥンバオ","hmsmhmolhmsmhmol",0.8),
+      TR("piano","ピアノ","モントゥーノ","8.53.8.53.5.8.53",0.65),
+      TR("brass","トロンボーン","歌の合間の合いの手","..........5.3.1.",0.7,{smp:"trb",base:48,pool:["........8.7.5..."]}),
+      TR("bass","ベース","先取りのベース","...5..1....5..1.",0.85)]},
+    {n:"モントゥーノ（合唱とベル）",d:"曲の後半の盛り上がり。ボンゴ奏者はカウベル（カンパーナ）に、ティンバレス奏者はマンボ・ベルに持ち替え、トロンボーンが「マンボ」と呼ばれるリフを吹きます。",
+     bpm:196,spb:2,prog:["C","F","G7","F"],tracks:[
+      TR("clave","クラベス","ソン・クラーベ（2-3）","..x.x...x..x..x.",0.6),
+      TR("cowbell","カンパーナ","ボンゴ奏者のベル","h.lhh.l.h.lhh.ll",0.75),
+      TR("cowbell","マンボ・ベル","ティンバレス奏者のベル","h.hlh.lhh.hlh.lh",0.5),
+      TR("conga","コンガ","2台のトゥンバオ","hmsmhmolhmsmhmol",0.8),
+      TR("piano","ピアノ","モントゥーノ","8.53.8.53.5.8.53",0.65),
+      TR("brass","トロンボーン","マンボ（リフ）","x.x..x.x..x.x...",0.75,{smp:"trb",fill:"x.x.x.x.o...o..."}),
+      TR("brass","トランペット","合いの手","....x..x....x..x",0.6,{smp:"tpt"}),
+      TR("bass","ベース","先取りのベース","...5..1....5..1.",0.85)]},
+    {n:"サルサ・ロマンティカ（80年代〜）",d:"1980年代に人気になった、甘い恋の歌を中心にしたサルサ。音が柔らかく、ストリングスやキーボードが入ります。",
+     bpm:176,spb:2,prog:["Am","Dm","G7","Cmaj7"],tracks:[
+      TR("clave","クラベス","ソン・クラーベ（2-3）","..x.x...x..x..x.",0.45),
+      TR("timbale","ティンバレス","カスカラ","c.c.cc.cc.cc.c.c",0.4),
+      TR("bongo","ボンゴ","マルティージョ","xxxoxxxlxxxoxxxl",0.5),
+      TR("conga","コンガ","トゥンバオ","hmsmhmolhmsmhmol",0.75),
+      TR("piano","ピアノ","モントゥーノ",".5.8.5.3.5.8.5.3",0.55),
+      TR("violin","ストリングス","のばす音","3.......5.......",0.5),
+      TR("bass","ベース","先取りのベース","...5..1....5..1.",0.85)]},
+  ],
+  merengue:[
+    {n:"ペリコ・リピアオ（伝統）",d:"アコーディオン、タンボーラ、グィラの3人が基本の、農村から生まれた昔ながらのメレンゲ。アコーディオンが細かいフレーズを弾きまくります。",
+     bpm:136,spb:4,prog:["C","G7"],tracks:[
+      TR("guira","グィラ","金属のこすり楽器","L.xxL.xxL.xxL.xx",0.85),
+      TR("tambora","タンボーラ","両面太鼓","o.xxo.x.o.xxs.x.",0.85,{fill:"o.xxo.xxs.ss.sss"}),
+      TR("accordion","アコーディオン","速いフレーズ","5353.8.75353.8.7",0.75,{pool:["8.8.7.5.3.5.8...","3.5.8.5.3.5.8.5."]}),
+      TR("bass","ベース","マリンブラ（箱のベース）","1...5...1...5...",0.85)]},
+    {n:"オルケスタ（サックスの合奏）",d:"1970〜90年代に大人気になった、サックスやトランペットが入った大編成のメレンゲ。サックスが速いくり返しのフレーズ（ジャレオ）を吹きます。",
+     bpm:150,spb:4,prog:["C","F","G7","C"],tracks:[
+      TR("guira","グィラ","金属のこすり楽器","L.xxL.xxL.xxL.xx",0.75),
+      TR("tambora","タンボーラ","両面太鼓","o.xxo.x.o.xxs.x.",0.85),
+      TR("conga","コンガ","合いの手","hmsmhmoohmsmhmoo",0.55),
+      TR("piano","ピアノ","裏で刻む",".x.x.x.x.x.x.x.x",0.45),
+      TR("sax","サックス","速いリフ","1.3.5.3.1.3.5.3.",0.7,{pool:["8.5.3.5.8.5.3.5."]}),
+      TR("brass","トランペット","キメ","....x.......x...",0.6,{smp:"tpt"}),
+      TR("bass","ベース","低音","1...5...1...5...",0.85)]},
+    {n:"ジャレオ（いちばん盛り上がる）",d:"メレンゲの曲の最後に来る、いちばん盛り上がる部分。タンボーラが激しく叩き、カウベルが加わり、サックスが同じフレーズを何度もくり返します。",
+     bpm:160,spb:4,prog:["C","G7"],tracks:[
+      TR("tambora","タンボーラ","激しく","o.xxo.xso.xxo.xs",0.9),
+      TR("guira","グィラ","休まず刻む","LxxxLxxxLxxxLxxx",0.7),
+      TR("cowbell","カウベル","拍を打つ","h.h.h.h.h.h.h.h.",0.55),
+      TR("sax","サックス","くり返しのリフ","5.5.5.3.5.5.5.3.",0.7),
+      TR("bass","ベース","低音","1...5...1...5...",0.85)]},
+  ],
+  cumbia:[
+    {n:"アコーディオンのクンビア（コロンビア）",d:"アコーディオンが主役のクンビア。裏拍の太鼓の上で、アコーディオンが和音とメロディを交互に弾きます。",
+     bpm:92,spb:4,prog:["Am","E7"],tracks:[
+      TR("guiro","グァチャラカ","こすり楽器","xxL.xxL.xxL.xxL.",0.75),
+      TR("llamador","リャマドール","裏拍だけを打つ太鼓","..x...x...x...x.",0.85),
+      TR("conga","タンボール・アレグレ","自由に歌う太鼓","o.so.o..o.so.os.",0.7,{pool:["o.so.o.so.so.o.s"]}),
+      TR("accordion","アコーディオン","裏拍で和音","..x...x...x...x.",0.6),
+      TR("accordion","アコーディオン（メロディ）","メロディ","5.3.5.6.5.3.1...",0.6,{pool:["3.5.8...7.5.6.5."]}),
+      TR("bass","ベース","ゆったり","1..5....1..5....",0.85)]},
+    {n:"クンビア・デ・ガイタ（伝統）",d:"コロンビアのカリブ海沿岸に伝わる古い形。先住民の笛「ガイタ」がメロディを吹き、アフリカ系の太鼓が支えます。",
+     bpm:90,spb:4,prog:["Am","E7"],tracks:[
+      TR("flute","ガイタ（先住民の笛）","メロディ","5..3.2.1..2.3...",0.7,{pool:["1.2.3...5.3.2.1."]}),
+      TR("maracas","マラコン（大きなマラカス）","刻み","x.o.x.o.x.o.x.o.",0.6),
+      TR("conga","タンボール・アレグレ","自由に歌う太鼓","o.so.o..o.so.os.",0.75),
+      TR("llamador","リャマドール","裏拍だけを打つ太鼓","..x...x...x...x.",0.85),
+      TR("tambora","タンボーラ（大太鼓）","低音","o.......o...o...",0.7)]},
+    {n:"クンビア・ソニデラ（メキシコ）",d:"メキシコで独自に発展した、ゆっくり重いクンビア。オルガンやキーボードの裏拍の和音と、ギロの「ギーッ・チャッチャ」が目印です。",
+     bpm:86,spb:4,prog:["Am","Dm","G7","C"],tracks:[
+      TR("guiro","ギロ","長く・短く・短く","L.xxL.xxL.xxL.xx",0.75),
+      TR("piano","オルガン","裏拍の和音","..x...x...x...x.",0.6,{smp:"org"}),
+      TR("conga","コンガ","合いの手","o.so.o..o.so.o..",0.6),
+      TR("timbale","ティンバレス","キメ","c.c.c.c.c.c.c.oo",0.5),
+      TR("bass","ベース","ゆったり","1..5....1..5....",0.85)]},
+  ],
+  tango:[
+    {n:"マルカート（4つ刻み）",d:"1940年代の「黄金時代」に多い、4拍すべてを同じ強さで刻むスタイル。ダンサーが歩きやすく、ヴァイオリンが歌うようなメロディを弾きます。",
+     bpm:118,spb:2,prog:["Am","E7"],tracks:[
+      TR("bandoneon","バンドネオン","マルカート→3+3+2","x.x.x.x.o..o..o.",0.9),
+      TR("piano","ピアノ","刻み","x...x...x..x..x.",0.65),
+      TR("violin","ヴァイオリン","歌うメロディ","5.......3.2.1...",0.6,{pool:["8...7...5.6.5..."]}),
+      TR("bass","コントラバス","拍の頭","1...5...1..5..5.",0.9)]},
+    {n:"アラストレ（重く引きずる）",d:"オスバルド・プグリエーセ楽団の「ジュンバ」に代表される、1拍目と3拍目を重く引きずるスタイル。拍の直前に低音が引きずるように入ります。",
+     bpm:108,spb:2,prog:["Dm","A7"],tracks:[
+      TR("bandoneon","バンドネオン","1と3を強く","o.x.o.x.o.x.o.x.",0.9),
+      TR("piano","ピアノ","刻み","x...x...x...x...",0.6),
+      TR("violin","ヴァイオリン","和音で刻む","x...x...x...x...",0.45),
+      TR("bass","コントラバス","引きずる低音（アラストレ）","1.....v.1.....v.",0.95)]},
+    {n:"ミロンガ（速い2拍子）",d:"タンゴの兄弟分で、より速く軽快な2拍子。キューバのハバネラに近い3+3+2のリズムが、ずっと続きます。",
+     bpm:96,spb:4,prog:["C","G7"],tracks:[
+      TR("bandoneon","バンドネオン","3+3+2","x..x..x.x..x..x.",0.85),
+      TR("piano","ピアノ","3+3+2","x..x..x.x..x..x.",0.55),
+      TR("violin","ヴァイオリン","メロディ","5.3.1.3.5.6.5...",0.6),
+      TR("bass","コントラバス","3+3+2の低音","1..5..5.1..5..5.",0.9)]},
+    {n:"バルス（3拍子）",d:"「タンゴ・ワルツ」とも呼ばれる3拍子のタンゴ。1拍目を低音、2・3拍目を和音で刻みます。",
+     bpm:150,spb:2,len:12,barSteps:6,prog:["C","G7"],tracks:[
+      TR("bandoneon","バンドネオン","2・3拍目","..x.x...x.x.",0.85),
+      TR("piano","ピアノ","1拍目","x.....x.....",0.55),
+      TR("violin","ヴァイオリン","メロディ","5.3.1.8.....",0.6),
+      TR("bass","コントラバス","1拍目の低音","1.....5.....",0.9)]},
+  ],
+  reggaeton:[
+    {n:"クラシック（2000年代）",d:"「ガソリーナ」のころの、デンボウがはっきり鳴るレゲトン。シンセの和音が3+3+2で入ります。",
+     bpm:94,spb:4,barSteps:16,prog:["Am","F","C","G"],tracks:[
+      TR("kick","バスドラム","4つ打ち","x...x...x...x...",0.9),
+      TR("snare","スネア","デンボウ（3+3+2）","...x..x....x..x.",0.8),
+      TR("hat","ハイハット","8分音符","x.x.x.x.x.x.x.x.",0.6),
+      TR("piano","シンセ","和音","x..x..x.x..x..x.",0.45,{smp:"syn"}),
+      TR("bass","ベース","低く長い音","1.....1.1.....1.",0.85)]},
+    {n:"モダン（ゆったり・808）",d:"2010年代以降の、ゆっくりで低音が重いレゲトン。ドラムマシン「808」の長い低音と、細かいハイハットが特徴です。",
+     bpm:90,spb:4,barSteps:16,prog:["Am","F","C","G"],tracks:[
+      TR("kick","バスドラム","4つ打ち","x...x...x...x...",0.85),
+      TR("snare","スネア","デンボウ（3+3+2）","...x..x....x..x.",0.75),
+      TR("hat","ハイハット","細かい刻み","x.x.x.x.x.xxx.x.",0.55,{pool:["x.x.xxx.x.x.xxxx"]}),
+      TR("rim","パーカッション","合いの手","..x.......x.....",0.5),
+      TR("piano","シンセ","のばす和音","x...............",0.4,{smp:"syn"}),
+      TR("bass","808ベース","重い低音","1.......1..1....",0.9,{smp:"sbs"})]},
+    {n:"デンボウ・ドミニカーノ（速い）",d:"ドミニカ共和国で2000年代に生まれた、もっと速くて激しいデンボウ。手拍子と、ティンバレスのような打楽器が鳴りっぱなしになります。",
+     bpm:120,spb:4,barSteps:16,prog:["Am","G"],tracks:[
+      TR("kick","バスドラム","細かく","x..x..x.x..x..x.",0.85),
+      TR("clap","手拍子","拍","....x.......x...",0.7),
+      TR("hat","ハイハット","16分音符","xxxxxxxxxxxxxxxx",0.4),
+      TR("timbale","ティンバレス","合いの手","o.o.o..o..o.o.o.",0.55),
+      TR("bass","ベース","低音","1..1..1.1..1..1.",0.8,{smp:"sbs"})]},
+  ],
+};
+function applyStyle(g,k){
+  const st = g.styles[k];
+  g.si = k;
+  Object.assign(g,{bpm:st.bpm,_bpm:st.bpm,spb:st.spb,len:st.len||16,barSteps:st.barSteps||(st.spb===3?12:8),swing:st.swing||0,prog:st.prog,
+    tracks:st.tracks.map(t=>({...t,on:true,cur:undefined})),styleDesc:st.d,styleName:st.n});
+  g.showChord = g.tracks.some(t=>LINE[t.inst] || ["guitar","piano","cavaco","accordion","bandoneon","brass","violin","sax"].includes(t.inst));
+}
+GENRES.forEach(g=>{ g.styles = STYLES[g.id]; applyStyle(g,0); });
+
 
 const CLAVES = [
   {id:"son32",name:"ソン・クラーベ 3-2",spb:2,bpm:100,p:"x..x..x...x.x...",note:"ソン、サルサ、マンボの基準。前半に3つ、後半に2つ。「カッ・・カッ・・カッ・・・カッ・カッ」"},
@@ -902,8 +1263,18 @@ function scheduleStep(){
     P.loops++;
     if(P.loops%2===0){ P.altIdx=1-P.altIdx; P.groove=P.alt[P.altIdx].g; P.grid=P.alt[P.altIdx].grid; }
   }
-  const g = P.groove, i = P.step;
+  const g = P.groove, i = P.step, len = g.len||16;
   const sd = 60/g.bpm/g.spb;
+  if(i===0){
+    // 1周ごとの変化：4周目はフィル（決めのフレーズ）、即興パートは毎周パターンを選び直す
+    const loop = Math.floor(P.total/len);
+    g.tracks.forEach(tr=>{
+      let cur = tr.p;
+      if(tr.fill && loop%4===3) cur = tr.fill;
+      else if(tr.pool && loop>0) cur = Math.random()<0.6 ? tr.pool[(Math.random()*tr.pool.length)|0] : tr.p;
+      if(cur!==tr.cur){ tr.cur = cur; if(tr._repaint) tr._repaint(); }
+    });
+  }
   let t = P.next;
   if(g.swing && i%2===1) t += sd*0.36*g.swing;
   const bar = Math.floor(P.total/(g.barSteps||8));
@@ -912,18 +1283,18 @@ function scheduleStep(){
   if(g.onStep) g.onStep(i,t,P.total,sd);
   g.tracks.forEach((tr,ti)=>{
     if(!tr.on) return;
-    const c = tr.p[i];
+    const pat = tr.cur||tr.p, c = pat[i];
     if(!c || c===".") return;
-    let gap = 1; while(gap<8 && (tr.p[(i+gap)%STEPS]||".")===".") gap++;
+    let gap = 1; while(gap<8 && (pat[(i+gap)%len]||".")===".") gap++;
     // 人間らしさ：ほんの少しのタイミングと強さのゆれ、楽器ごとに左右へ配置
     const ht = t + (Math.random()-0.5)*0.008;
     const hv = (tr.vol??0.8)*(0.88+Math.random()*0.22);
     const pan = tr.pan ?? (n>1 ? ((ti/(n-1))-0.5)*0.8 : 0);
-    try{ INST[tr.inst].play(ht,c,hv,{chord,sd,gap,pan}); }catch(e){ console.warn(e); }
+    try{ INST[tr.inst].play(ht,c,hv,{chord,sd,gap,pan,smp:tr.smp,base:tr.base}); }catch(e){ console.warn(e); }
     if(g.onHit) g.onHit(tr,c,ht);
   });
   P.q.push({i,t,grid:P.grid,chord:chord.name,alt:P.alt?P.altIdx:null});
-  P.next += sd; P.step = (i+1)%STEPS; P.total++;
+  P.next += sd; P.step = (i+1)%len; P.total++;
 }
 function tick(){ while(P.next < ctx.currentTime + 0.12) scheduleStep(); }
 function draw(){
@@ -935,7 +1306,7 @@ function draw(){
     P.lastGrid = e.grid;
     setNow(e.grid,e.i);
     if(P.onAlt && e.alt!=null && e.alt!==P.shownAlt){ P.shownAlt=e.alt; P.onAlt(e.alt); }
-    if(P.chordEl && P.groove.showChord) P.chordEl.innerHTML = "コード <b>"+e.chord+"</b>";
+    if(P.chordEl) P.chordEl.innerHTML = P.groove.showChord ? "コード <b>"+e.chord+"</b>" : "";
   }
   requestAnimationFrame(draw);
 }
@@ -998,7 +1369,7 @@ const h = (tag,attrs={},...kids)=>{
 function stepsRow(g,make){
   const wrap = h("div",{class:"steps"});
   const spb = g.spb, bs = g.barSteps||8;
-  for(let b=0;b<STEPS;b+=spb){
+  for(let b=0;b<(g.len||16);b+=spb){
     const grp = h("div",{class:"beatgrp"+(b%bs===0&&b>0?" barstart":"")});
     grp.style.flex = String(spb);
     for(let i=b;i<b+spb;i++) grp.append(make(i));
@@ -1015,7 +1386,7 @@ function rulerLabel(g,i){
 
 function buildGrid(el,g,opts={}){
   el.innerHTML = "";
-  el._cols = Array.from({length:STEPS},()=>[]); el._now = null;
+  el._cols = Array.from({length:g.len||16},()=>[]); el._now = null;
   const ruler = h("div",{class:"trk ruler","aria-hidden":"true"},
     h("div",{class:"trk-head"},opts.rulerLabel||"拍"),
     stepsRow(g,i=>{ const c=h("span",{class:"cell"},rulerLabel(g,i)); el._cols[i].push(c); return c; }));
@@ -1047,21 +1418,26 @@ function trackRow(el,g,tr,ti,opts){
   }
   const cells = [];
   const paint = i=>{
-    const c = cells[i], ch = tr.p[i]||".";
+    const c = cells[i], ch = (tr.cur||tr.p)[i]||".";
     const on = ch!==".";
     c.className = "cell"+(i%g.spb===0?" b":"")+(on?" on":"")+(on&&weak.includes(ch)?" weak":"")+(i===el._now?" now":"");
     c.textContent = on && ch!=="o" && ch!=="x" ? ((inst.glyph&&inst.glyph[ch])||GLYPH[ch]||ch) : "";
-    c.title = on ? (inst.legend[ch]||"") : "休み";
+    c.title = on ? (inst.legend[ch]||DEG_LEG[ch]||"") : "休み";
   };
   const paintAll = ()=>cells.forEach((_,i)=>paint(i));
+  tr._painters = (tr._painters||[]).filter(f=>f.alive());
+  paintAll.alive = ()=>cells[0] && cells[0].isConnected;
+  tr._painters.push(paintAll);
+  tr._repaint = ()=>{ tr._painters = tr._painters.filter(f=>f.alive()); tr._painters.forEach(f=>f()); };
   const steps = stepsRow(g,i=>{
     const c = opts.editable ? h("button",{"aria-label":`${tr.name} ${i+1}マス目`}) : h("span");
     cells[i] = c; el._cols[i].push(c);
     if(opts.editable) c.addEventListener("click",()=>{
       ensureAudio();
-      const cyc = inst.cycle, k = (cyc.indexOf(tr.p[i])+1)%cyc.length;
-      tr.p = tr.p.slice(0,i)+cyc[k]+tr.p.slice(i+1);
-      if(cyc[k]!=="." && !P.playing){ try{ inst.play(ctx.currentTime+0.01,cyc[k],tr.vol??0.8,{chord:parseChord((g.prog||["C"])[0]),sd:60/g.bpm/g.spb,gap:2}); }catch(e){} }
+      const cyc = inst.cycle, base = tr.cur||tr.p;
+      const k = (cyc.indexOf(base[i])+1)%cyc.length;
+      tr.p = base.slice(0,i)+cyc[k]+base.slice(i+1); tr.cur = tr.p;
+      if(cyc[k]!=="." && !P.playing){ try{ inst.play(ctx.currentTime+0.01,cyc[k],tr.vol??0.8,{chord:parseChord((g.prog||["C"])[0]),sd:60/g.bpm/g.spb,gap:2,smp:tr.smp,base:tr.base}); }catch(e){} }
       paint(i);
       if(sel){ const m = tr.variants.findIndex(v=>v.p===tr.p); tr.vi=m; sel.value=String(m); }
       opts.onChange&&opts.onChange();
@@ -1155,8 +1531,6 @@ document.getElementById("legend").append(
 /* ================================================================
    6. ジャンル比較画面
    ================================================================ */
-GENRES[0].tracks = SAMBA_PARTS.filter(p=>LESSONS[7].set[p.id]!==undefined).map(p=>({inst:p.inst,name:p.name,role:p.role,p:p.variants[0].p,vol:p.vol}));
-GENRES.forEach(g=>{ g.showChord = !["samba","rumba"].includes(g.id); g.tracks.forEach(t=>{ t.on = true; }); g._bpm = g.bpm; });
 
 let curGenre = GENRE.samba;
 const gGrid = document.getElementById("genre-grid");
@@ -1176,6 +1550,9 @@ function selectGenre(id,scroll){
   tx.innerHTML = "";
   const gn = document.getElementById("gname");
   gn.innerHTML = ""; gn.append(h("h3",{},g.name),h("em",{},g.orig));
+  const sp = document.getElementById("style-pick");
+  sp.replaceChildren(...g.styles.map((st,k)=>h("button",{class:"gchip small","aria-pressed":String(k===g.si),onclick(){ applyStyle(g,k); selectGenre(id); }},st.n)));
+  document.getElementById("style-desc").textContent = g.styleDesc;
   tx.append(...g.desc.map(d=>h("p",{},d)),
     h("h4",{style:"margin:6px 0 0;font-size:14px"},"聴きどころ"),
     h("ul",{class:"points"},g.points.map(p=>h("li",{},p))));
@@ -1183,7 +1560,7 @@ function selectGenre(id,scroll){
   f.innerHTML = "";
   [["地域",g.region],["時代",g.era],["テンポ",g.tempo],["リズムの鍵",g.key],["楽器",g.insts]]
     .forEach(([k,v])=>f.append(h("dt",{},k),h("dd",{},v)));
-  buildGrid(gGrid,g,{key:g.id,rulerLabel:g.spb===2?"拍（8分音符）":"拍（16分音符）"});
+  buildGrid(gGrid,g,{key:g.id,rulerLabel:g.spb===2?"拍（8分音符）":g.spb===3?"拍（6/8拍子）":"拍（16分音符）"});
   gT.sync();
   if(P.playing && P.btn===gT.btn) swapGroove(g,gGrid);
   if(scroll){ if(location.hash!=="#genres"){ location.hash="genres"; route(); } window.scrollTo({top:0}); }
@@ -1347,7 +1724,7 @@ const ROLE_PICK = {
   chacha:{bass:"ベース",spine:"コンガ",pulse:"ギロ"},
   rumba:{bass:"トゥンバ",spine:"クラベス",pulse:"パリートス"},
   ballroom:{bass:"ベース",spine:"クラベス",pulse:"マラカス"},
-  salsa:{bass:"ベース",spine:"クラベス",pulse:"カウベル"},
+  salsa:{bass:"ベース",spine:"クラベス",pulse:"ボンゴ"},
   merengue:{bass:"ベース",spine:"タンボーラ",pulse:"グィラ"},
   cumbia:{bass:"ベース",spine:"リャマドール",pulse:"グァチャラカ"},
   tango:{bass:"コントラバス",spine:"バンドネオン",pulse:null},
@@ -1374,7 +1751,7 @@ function selectRole(id){
     row.style.setProperty("--fc",`var(--c-${inst.fam})`);
     const groove = {bpm:g._bpm,spb:g.spb,barSteps:g.barSteps,swing:g.swing,prog:g.prog,tracks:[{...tr,on:true}]};
     const el = h("div",{class:"steps-host"});
-    el._cols = Array.from({length:STEPS},()=>[]); el._now = null;
+    el._cols = Array.from({length:g.len||16},()=>[]); el._now = null;
     el.append(stepsRow(groove,i=>{
       const ch = tr.p[i], on = ch!==".";
       const c = h("span",{class:"cell"+(i%g.spb===0?" b":"")+(on?" on":"")+(on&&weak.includes(ch)?" weak":"")},
@@ -1427,6 +1804,12 @@ const INST_DB = {
   snare:{orig:"Snare drum（スネアドラム）",from:"ヨーロッパの軍楽隊の小太鼓",made:"金属や木の胴、両面の皮、響き線",size:"直径約35cm",play:"2本のスティックで叩く",trivia:"レゲトンのスネアはほとんどがドラムマシンの音で、3+3+2の位置に置かれます。"},
   hat:{orig:"Hi-hat（ハイハット）",from:"アメリカのジャズドラム",made:"上下2枚のシンバル",size:"直径約35cm",play:"足のペダルで開け閉めし、スティックで叩く",trivia:"閉じて「チッ」、開いて「シャーン」と、1つで違う音が出せます。"},
 };
+INST_DB.flute = {orig:"Flauta / Gaita（フルート／ガイタ）",from:"ヨーロッパのフルート。コロンビアのガイタは先住民の縦笛",made:"金属や木（ガイタはサボテンの芯と蜜ろう、鳥の羽根の吹き口）",size:"長さ約65cm",play:"息を吹き込み、指で穴をふさいで音の高さを変える",trivia:"キューバのチャランガでは、木のフルートの高く鋭い音が、太鼓や弦の上に突き抜けて聴こえます。"};
+INST_DB.violin = {orig:"Violín（ヴァイオリン）",from:"ヨーロッパ",made:"木の胴、4本の弦、弓は馬の毛",size:"全長約60cm",play:"あごの下にはさみ、弓で弦をこする。弦を指ではじくこともある",trivia:"キューバのチャランガでは、ヴァイオリンが打楽器のように短く和音を刻みます。タンゴでは弦を弓でこすって「虫の鳴き声」のような効果音を出す奏法もあります。"};
+INST_DB.sax = {orig:"Saxofón（サックス）",from:"ベルギーのアドルフ・サックスが1840年代に発明",made:"真鍮の管に、木のリード（葦の板）",size:"アルトで長さ約60cm",play:"リードを唇でくわえて振るわせ、キーを押さえて音を変える",trivia:"メレンゲのサックスは、目にも止まらない速さのくり返しフレーズが聴かせどころです。"};
+INST_DB.clap = {orig:"Palmas（パウマス／手拍子）",from:"世界中",made:"手のひら",size:"―",play:"手のひらを打ち合わせる。手をくぼませると低い音、指先を合わせると高い音になる",trivia:"サンバ・ジ・ホーダでは、輪になった全員の手拍子がリズムの土台です。"};
+INST_DB.cajon = {orig:"Cajón（カホン）",from:"ペルーやキューバ。荷物の木箱を太鼓の代わりにしたのが始まり",made:"木の箱（前面は薄い板）",size:"高さ約50cm",play:"箱にまたがって座り、前面の真ん中（低い音）とふち（高い音）を手で叩く",trivia:"キューバのルンバ・ヤンブーでは、大きさの違う木箱で太鼓の会話を作ります。"};
+INST_DB.ride = {orig:"Ride cymbal（ライドシンバル）",from:"アメリカのジャズドラム",made:"大きな金属の円盤",size:"直径50〜55cm",play:"スティックの先で細かく叩き続ける。中心のこぶ（ベル）を叩くと鐘のような音になる",trivia:"ジャズのボサノバでは、ブラシやシンバルの細かい音で軽やかさを出します。"};
 INST_DB.surdo1 = INST_DB.surdo2 = INST_DB.surdo3 = INST_DB.surdo;
 
 const ACTION = {
@@ -1434,9 +1817,9 @@ const ACTION = {
   chocalho:"shake",cuica:"rub",pandeiro:"strike",cavaco:"strum",guitar:"strum",bass:"pluck",piano:"keys",
   brass:"blow",accordion:"squeeze",bandoneon:"squeeze",clave:"clap",rim:"strike",palitos:"alt",conga:"alt",
   bongo:"alt",cowbell:"strike",timbale:"alt",guiro:"scrape",guira:"scrape",maracas:"shake",hat:"strike",kick:"strike",
-  snare:"alt",tambora:"alt",llamador:"strike",click:"strike"
+  snare:"alt",tambora:"alt",llamador:"strike",click:"strike",flute:"flute",violin:"bow",sax:"blow",clap:"clap",cajon:"alt",ride:"strike"
 };
-const STICK_R = new Set(["caixa","repique","tamborim","agogo","rim","palitos","cowbell","timbale","snare","hat","tambora","guiro","guira"]);
+const STICK_R = new Set(["ride","caixa","repique","tamborim","agogo","rim","palitos","cowbell","timbale","snare","hat","tambora","guiro","guira"]);
 const STICK_L = new Set(["caixa","rim","palitos","timbale","snare"]);
 const MALLET = new Set(["surdo1","surdo2","surdo3"]);
 const FAM_ORDER = ["low","harm","mid","high","shake"];
@@ -1577,6 +1960,16 @@ function buildInstrument(id,B,mats){
     case "repique": add(at(drumR(0.16,0.3,chrome,head,rim,8),0,1.0,0.38,0.35)); break;
     case "cuica": add(at(drumR(0.13,0.3,chrome,head,rim,6),-0.05,1.12,0.34,0,0,Math.PI/2)); break;
     case "snare": case "rim": add(at(drumR(0.17,0.12,chrome,head,rim,8),0,0.84,0.45,0.15)); stand(0.78,0,0.45); break;
+    case "flute": add(at(cylM(0.014,0.014,0.62,SM(0xd5dae0,mats,{r:0.25,m:0.9}),10),0.22,1.74,0.16,0,0.15,Math.PI/2)); break;
+    case "violin": {
+      const vb = new T.Group(); const v1 = sphM(0.09,wood); v1.scale.set(1,1.3,0.35); vb.add(v1); const v2 = sphM(0.075,wood); v2.scale.set(1,1.2,0.35); vb.add(at(v2,0,0.13,0));
+      vb.add(at(boxM(0.025,0.2,0.02,black),0,0.28,0)); add(at(vb,-0.16,1.55,0.18,-1.2,0,0.9));
+      B.armR.hand.add(at(cylM(0.005,0.005,0.6,SM(0xd8c7a0,mats),6,false),0,-0.05,0.0,0,0,1.4)); break; }
+    case "sax": {
+      const sx = new T.Group(); sx.add(cylM(0.035,0.05,0.5,gold,12)); sx.add(at(msh(GG("saxb",()=>new T.CylinderGeometry(0.06,0.1,0.14,16,1,true)),SM(0xd8a93a,mats,{r:0.3,m:0.85,ds:true})),0.05,-0.27,0.05,0,0,-0.6));
+      sx.add(at(cylM(0.012,0.012,0.18,gold,8),0,0.32,-0.04,0.6)); add(at(sx,0.02,1.28,0.26,0.2,0,0.12)); break; }
+    case "cajon": add(at(boxM(0.36,0.48,0.34,woodL),0,0.85,0.48)); add(at(boxM(0.3,0.42,0.005,wood),0,0.85,0.652)); stand(0.61,0,0.48); break;
+    case "ride": add(at(cylM(0.25,0.25,0.012,gold,32),0.1,1.12,0.48,0.25)); stand(1.1,0.1,0.48); break;
     case "kick": add(at(drumR(0.28,0.34,red,head,rim,10),0,0.3,0.58,Math.PI/2)); add(at(boxM(0.08,0.05,0.22,dark),0.12,0.03,0.3)); break;
     case "hat": add(at(cylM(0.18,0.18,0.012,gold,28),0,1.02,0.45)); add(at(cylM(0.18,0.18,0.012,gold,28),0,1.045,0.45)); stand(1.02,0,0.45); break;
     case "tambora": add(at(drumR(0.18,0.38,wood,head,rim,0),0,1.0,0.38,0,0,Math.PI/2)); break;
@@ -1877,13 +2270,15 @@ function buildLineup(genreId){
   const wasPlaying = P.playing && P.btn===stT.btn;
   if(genreId!=="samba" && Stage.parade){ Stage.parade = false; carnBtn.setAttribute("aria-pressed","false"); }
   carnBtn.hidden = genreId!=="samba";
-  const sameGenre = Stage.genre===g && Stage.groove;
+  const sameGenre = Stage.genre===g && Stage.groove && Stage.styleKey===g.id+":"+g.si;
+  Stage.styleKey = g.id+":"+g.si;
+  document.getElementById("stage-styles").replaceChildren(...g.styles.map((st,k)=>h("button",{class:"gchip","aria-pressed":String(k===g.si),onclick(){ applyStyle(g,k); buildLineup(genreId); }},st.n)));
   Stage.genre = g; Stage.sel = null;
   if(!sameGenre){
     Stage.solo = null;
-    const tracks = g.tracks.map(t=>({...t,on:true}));
+    const tracks = g.tracks.map(t=>({...t,on:true,cur:undefined,_painters:undefined,_repaint:undefined}));
     Stage.muted = tracks.map(()=>false);
-    Stage.groove = {bpm:g._bpm,spb:g.spb,barSteps:g.barSteps,swing:g.swing,prog:g.prog,showChord:g.showChord,tracks,
+    Stage.groove = {bpm:g._bpm,spb:g.spb,len:g.len,barSteps:g.barSteps,swing:g.swing,prog:g.prog,showChord:g.showChord,tracks,
       onHit(tr,c,t){ const list = Stage.byTrack && Stage.byTrack.get(tr); if(list) list.forEach(p=>p.hits.push({t,s:hitStrength(p,c)})); },
       onStep(i,t,total,sd){ if(Stage.parade && total%128===0){ whistleCall(t,sd); Stage.whistleAt = t; } }};
     if(wasPlaying) swapGroove(Stage.groove,stPat);
@@ -1984,6 +2379,7 @@ function renderSide(){
   if(Stage.sel==null){
     stSide.append(
       h("div",{},h("h3",{},g.name),h("p",{class:"sub"},g.orig+"・"+g.region+"・"+g.era)),
+      h("div",{class:"style-now"},h("b",{},g.styleName),h("p",{},g.styleDesc)),
       h("p",{class:"clue"},g.clue),
       ...[g.id==="samba" ? h("p",{class:"sub"},Stage.parade?"リオの街を練り歩く「ブロコ」（街のカーニバル隊）。再生すると拍に合わせて行進し、先頭の指揮者メストレが笛（アピート）で合図します。後ろには踊りながらついていく人たち。":"下の「カーニバル」を押すと、リオの街をサンバ隊が練り歩く様子が見られます。") : null].filter(Boolean),
       h("p",{class:"sub"},"演奏者をタップすると、リズムと楽器の詳しい情報が見られます。"),
@@ -2007,7 +2403,7 @@ function renderSide(){
     stSide.append(stPat,
       h("div",{class:"side-legend"},used.map(c=>h("span",{},h("b",{},(inst.glyph&&inst.glyph[c])||GLYPH[c]||c),inst.legend[c]||""))),
       h("p",{class:"side-text"},part ? part.desc : (tr.role ? "このジャンルでの役割："+tr.role+"。" : "")));
-    buildGrid(stPat,{spb:g.spb,barSteps:g.barSteps,tracks:[tr]},{key:"stage",onChange(){ Stage.muted[i]=!tr.on; Stage.solo=null; applyMix(); renderSide(); }});
+    buildGrid(stPat,{spb:g.spb,len:g.len,barSteps:g.barSteps,tracks:[tr]},{key:"stage",onChange(){ Stage.muted[i]=!tr.on; Stage.solo=null; applyMix(); renderSide(); }});
   } else {
     if(P.playing && P.btn===stT.btn) setNow(stPat,null);
     const sounds = inst.cycle.filter(c=>c!==".");
@@ -2051,6 +2447,8 @@ function stageLoop(tm){
       case "strum": armPose(L,-0.7,-1.6,-0.35); armPose(R,-0.3,-1.25,0.4-0.45*e); break;
       case "pluck": armPose(L,-0.9,-1.7,-0.1); armPose(R,-0.25,-1.0+0.2*e,0.35); break;
       case "blow": armPose(L,-0.7,-1.9,-0.25); armPose(R,-0.75,-1.85,0.2); break;
+      case "flute": armPose(L,-1.2,-1.7,-0.6); armPose(R,-1.0,-1.9,0.9); break;
+      case "bow": armPose(L,-1.0,-1.9,-0.5); armPose(R,-0.7,-1.3,0.15+0.45*Math.sin(time*5)*(playing?1:0.2)); break;
       case "squeeze": armPose(L,-0.35,-1.3,-0.35-0.2*e); armPose(R,-0.35,-1.3,0.35+0.2*e); break;
       default: armPose(L,-0.3,-1.2); armPose(R,-0.3,-1.2);
     }
@@ -2165,6 +2563,7 @@ function newQuestion(){
   Q.ans = pool[Math.floor(Math.random()*pool.length)];
   Q.choices = shuffle([Q.ans,...shuffle(GENRES.filter(g=>g!==Q.ans)).slice(0,3)]);
   Q.done = false;
+  applyStyle(Q.ans,(Math.random()*Q.ans.styles.length)|0);
   Q.ans.bpm = Q.ans._bpm;
   renderQuiz();
   qDots._cols.forEach((c,i)=>c[0].className = "cell"+(i%Q.ans.spb===0?" beatdot":""));
@@ -2194,6 +2593,7 @@ function renderQuiz(){
     const ok = Q.picked===Q.ans;
     quizEl.append(h("div",{class:"verdict"},
       h("strong",{style:`color:var(${ok?"--good":"--bad"})`},ok?"正解！":"ざんねん。正解は「"+Q.ans.name+"」"),
+      h("p",{},"いま流れていたのは「"+Q.ans.name+"」の「"+Q.ans.styleName+"」。"),
       h("p",{},"ヒント："+Q.ans.clue),
       h("div",{class:"chips"},
         h("button",{class:"btn primary",onclick:newQuestion},"次の問題 →"),
