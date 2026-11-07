@@ -153,6 +153,56 @@ details.help > div{margin-top:8px;display:flex;flex-direction:column;gap:8px}
 .points li::before{content:"";position:absolute;left:4px;top:.72em;width:8px;height:8px;border-radius:2px;background:var(--hot);transform:rotate(45deg)}
 .note{font-size:12.5px;color:var(--muted)}
 
+/* stage */
+.stage{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:14px;height:calc(100dvh - 120px);min-height:440px;max-height:780px}
+.stage-view{position:relative;border-radius:16px;overflow:hidden;background:var(--surface-2);min-height:0}
+#stage-canvas{display:block;width:100%;height:100%;touch-action:none;cursor:grab}
+.stage-labels{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.plabel{position:absolute;left:0;top:0;font-size:11.5px;font-weight:700;background:var(--surface);color:var(--fg);padding:2px 9px;border-radius:999px;white-space:nowrap;box-shadow:0 1px 3px rgba(0,0,0,.18);pointer-events:auto;cursor:pointer;border:0;font-family:var(--f-body);will-change:transform}
+.plabel.muted{opacity:.45}
+.plabel.sel{background:var(--hot);color:var(--hot-fg)}
+.stage-top{position:absolute;top:10px;left:10px;right:10px}
+.stage-genres{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.stage-genres::-webkit-scrollbar{display:none}
+.stage-genres .gchip{flex:none;font-size:13px;padding:5px 12px;background:var(--surface)}
+.stage-genres .gchip[aria-pressed="true"]{background:var(--fg)}
+.stage-bottom{position:absolute;left:10px;bottom:10px;display:flex;gap:8px 14px;align-items:center;flex-wrap:wrap;background:var(--surface);border-radius:999px;padding:6px 16px 6px 6px;max-width:calc(100% - 20px)}
+.stage-bottom .chord-now{margin-left:0}
+.stage-hint{position:absolute;right:14px;bottom:16px;font-size:11.5px;color:var(--muted)}
+.stage-msg{position:absolute;inset:0;pointer-events:none;display:grid;place-items:center;padding:24px;text-align:center;color:var(--muted)}
+.stage-side{background:var(--surface);border-radius:16px;padding:16px;overflow-y:auto;display:flex;flex-direction:column;gap:12px;min-height:0}
+.stage-side h3{font-family:var(--f-display);font-weight:400;font-size:24px}
+.stage-side .sub{font-size:12.5px;color:var(--muted)}
+.stage-side .clue{font-size:14px;background:var(--surface-2);border-radius:10px;padding:10px 12px}
+.stage-side .facts{font-size:13px;gap:4px 12px}
+.side-head{display:flex;gap:10px;align-items:center}
+.side-head .sw{width:16px;height:16px;border-radius:4px;background:var(--fc);flex:none}
+.side-head b{font-size:18px;display:block;line-height:1.3}
+.side-head small{display:block;font-size:12px;color:var(--muted)}
+.side-actions{display:flex;gap:6px;flex-wrap:wrap}
+.side-actions .btn[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.side-back{all:unset;cursor:pointer;font-size:12.5px;color:var(--muted);font-weight:700}
+.side-back:focus-visible{outline:2px solid var(--accent)}
+.stage-side .grid{padding:8px;background:var(--surface-2)}
+.stage-side .trk{grid-template-columns:minmax(0,1fr)}
+.stage-side .ruler .trk-head{display:none}
+.stage-side .cell{height:26px}
+.side-legend{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;color:var(--muted)}
+.side-legend b{font-family:var(--f-mono);color:var(--fg);margin-right:3px}
+.perf-chips{display:flex;flex-wrap:wrap;gap:6px}
+.perf-chips .gchip{font-size:12.5px;padding:4px 10px;display:inline-flex;align-items:center;gap:6px}
+.perf-chips .gchip i{width:9px;height:9px;border-radius:2px;background:var(--fc)}
+@media (max-width:820px){
+  .stage{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr) auto;height:calc(100dvh - 118px);max-height:none;min-height:520px;gap:10px}
+  .stage-side{max-height:36dvh;padding:12px 14px}
+  .stage-bottom{padding:4px 12px 4px 4px;gap:4px 10px;left:8px;bottom:8px}
+  .stage-bottom .play{min-width:0;padding:7px 14px;font-size:14px}
+  .stage-bottom .knob input[type=range]{width:90px}
+  .stage-hint{display:none}
+  .plabel{font-size:10.5px;padding:1px 7px}
+  .stage-side h3{font-size:20px}
+}
+
 /* compare */
 .vs{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:10px;align-items:center}
 .vs select{font-size:16px;font-weight:700;padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:var(--surface);width:100%}
@@ -232,6 +282,8 @@ table.cmp tbody tr:last-child td,table.cmp tbody tr:last-child th{border-bottom:
 .choice.wrong{border-color:var(--bad);color:var(--bad)}
 .verdict{border-radius:12px;padding:14px 16px;background:var(--surface-2);font-size:14px;display:flex;flex-direction:column;gap:6px}
 .verdict strong{font-size:16px}
+body[data-tab="stage"] footer{display:none}
+body[data-tab="stage"]{padding-bottom:12px}
 footer{margin-top:40px;color:var(--muted);font-size:12px;border-top:1px solid var(--line);padding-top:16px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}.cell.now{transform:none}}
 </style>
@@ -243,15 +295,30 @@ footer{margin-top:40px;color:var(--muted);font-size:12px;border-top:1px solid va
       <h1>サンバ<span class="dot">・</span>シミュレーター</h1>
     </div>
     <nav class="tabs" aria-label="画面の切り替え">
-      <a href="#generator" data-tab="generator">組み立てる</a>
+      <a href="#stage" data-tab="stage">ステージ</a>
+      <a href="#generator" data-tab="generator">組み立て</a>
       <a href="#genres" data-tab="genres">ジャンル</a>
-      <a href="#compare" data-tab="compare">違いを知る</a>
+      <a href="#compare" data-tab="compare">違い</a>
       <a href="#quiz" data-tab="quiz">クイズ</a>
     </nav>
   </header>
 
   <!-- ============ サンバ・ジェネレーター ============ -->
-  <section class="panel" id="panel-generator" data-panel="generator">
+  <!-- ============ 3Dステージ ============ -->
+  <section class="panel" id="panel-stage" data-panel="stage">
+    <div class="stage">
+      <div class="stage-view" id="stage-view">
+        <canvas id="stage-canvas" aria-label="演奏者の3Dステージ"></canvas>
+        <div class="stage-labels" id="stage-labels"></div>
+        <div class="stage-top"><div class="stage-genres" id="stage-genres"></div></div>
+        <div class="stage-bottom" id="stage-transport"></div>
+        <p class="stage-hint">ドラッグで回転／演奏者をタップ</p>
+      </div>
+      <aside class="stage-side" id="stage-side"></aside>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-generator" data-panel="generator" hidden>
     <div class="transport sticky" id="gen-transport"></div>
     <div class="lesson" id="lesson"></div>
     <div id="gen-grid" class="grid"></div>
@@ -329,6 +396,7 @@ footer{margin-top:40px;color:var(--muted);font-size:12px;border-top:1px solid va
   </footer>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 "use strict";
 /* ================================================================
@@ -710,6 +778,7 @@ function scheduleStep(){
     if(!c || c===".") continue;
     let gap = 1; while(gap<8 && (tr.p[(i+gap)%STEPS]||".")===".") gap++;
     try{ INST[tr.inst].play(t,c,tr.vol??0.8,{chord,sd,gap}); }catch(e){ console.warn(e); }
+    if(g.onHit) g.onHit(tr,c,t);
   }
   P.q.push({i,t,grid:P.grid,chord:chord.name,alt:P.alt?P.altIdx:null});
   P.next += sd; P.step = (i+1)%STEPS; P.total++;
@@ -871,6 +940,7 @@ function transport(el,{getGroove,getGrid,min=50,max=220,swing=false,key}){
   const chordEl = h("span",{class:"chord-now"});
   btn.addEventListener("click",()=>{
     if(P.playing && P.btn===btn){ stop(); return; }
+    if(!getGroove()) return;
     play(getGroove(),getGrid(),btn,chordEl);
   });
   tempo.addEventListener("input",()=>{ const g=getGroove(); g.bpm=+tempo.value; tOut.textContent="♩="+tempo.value; });
@@ -1178,6 +1248,322 @@ function selectRole(id){
 }
 selectRole("bass");
 
+
+/* ================================================================
+   9. 3Dステージ（演奏者を立体で見る）
+   ================================================================ */
+const INST_INFO = {
+  clave:"クラベス。2本の硬い木の棒を打ち合わせる楽器です。「クラーベ」というリズムの型を鳴らし、バンド全員の基準になります。",
+  rim:"スネアドラムのふちをスティックで叩く奏法（クロススティック）。「カチッ」という乾いた音でボサノバ・クラーベを刻みます。",
+  kick:"バスドラム。足でペダルを踏んで鳴らす大きな太鼓で、いちばん低い「ドン」を担当します。",
+  maracas:"マラカス（シェイカー）。中に種や粒が入った振る楽器で、細かい刻みでノリを作ります。",
+  guitar:"ギター。コード（和音）をリズミカルに弾き、打楽器の役割も兼ねます。",
+  bass:"ベース。いちばん低い音で和音の土台を支えます。どの拍で弾くかがジャンルの個性になります。",
+  bongo:"ボンゴ。大小2つの小さな太鼓をひざにはさんで、指で叩きます。",
+  cowbell:"カウベル（カンパーナ）。牛の首につける鐘が由来の金属楽器で、拍を力強く刻みます。",
+  timbale:"ティンバレス。スタンドに乗った2つの金属胴の太鼓。胴を叩く「カスカラ」と派手なフィルを担当します。",
+  conga:"コンガ（トゥンバドーラ）。背の高い樽型の太鼓。手のひら・指・かかとで叩き分けて、いろいろな音を出します。",
+  piano:"ピアノ。ラテン音楽では同じ和音パターンを繰り返し、打楽器のようにリズムを刻みます。",
+  brass:"トランペットやサックスなどの管楽器。短いフレーズ（リフ）で鋭いキメを入れます。",
+  guiro:"ギロ（グァチャラカ）。表面にギザギザのある筒や棒を、棒でこすって鳴らします。",
+  palitos:"パリートス。2本の木の棒で、木の箱や太鼓の胴を叩きます。",
+  guira:"グィラ。金属のおろし金のような筒を、ブラシでこすって鳴らします。",
+  tambora:"タンボーラ。横に抱える両面太鼓。片側を手、片側をスティックで叩きます。",
+  accordion:"アコーディオン。蛇腹で空気を送り、鍵盤やボタンで和音とメロディを弾きます。",
+  llamador:"リャマドール。小さな太鼓で、拍の裏だけを叩いてリズムを支えます。",
+  bandoneon:"バンドネオン。ボタン式の蛇腹楽器でタンゴの主役。蛇腹を強く押し引きして「ザッ」と刻みます。",
+  snare:"スネアドラム。「タッ」という音で3+3+2のデンボウを刻みます。レゲトンでは実際にはドラムマシンで鳴らすことがほとんどです。",
+  hat:"ハイハット。2枚のシンバルを合わせた楽器で、細かく「チッチッ」と刻みます。",
+};
+const ACTION = {
+  surdo1:"strike",surdo2:"strike",surdo3:"strike",caixa:"alt",repique:"alt",tamborim:"strike",agogo:"strike",
+  chocalho:"shake",cuica:"pulse",pandeiro:"strike",cavaco:"strum",guitar:"strum",bass:"strum",piano:"keys",
+  brass:"pulse",accordion:"squeeze",bandoneon:"squeeze",clave:"clap",rim:"strike",palitos:"alt",conga:"alt",
+  bongo:"alt",cowbell:"strike",timbale:"alt",guiro:"shake",guira:"shake",maracas:"shake",hat:"strike",kick:"pulse",
+  snare:"strike",tambora:"alt",llamador:"strike",click:"strike"
+};
+const STICKS = new Set(["surdo1","surdo2","surdo3","caixa","repique","tamborim","agogo","rim","palitos","cowbell","timbale","snare","hat","llamador"]);
+const FAM_ORDER = ["low","harm","mid","high","shake"];
+const SKINS = [0x8d5524,0xc68642,0x6b4423,0xe0ac69,0x4a2f22,0xf1c27d,0xa0662f];
+
+const Stage = {ready:false,perf:[],sel:null,solo:null,muted:[],groove:null,genre:null,rot:0.0};
+const stView = document.getElementById("stage-view");
+const stCanvas = document.getElementById("stage-canvas");
+const stLabels = document.getElementById("stage-labels");
+const stSide = document.getElementById("stage-side");
+const stPat = h("div",{class:"grid"});
+const stT = transport(document.getElementById("stage-transport"),{getGroove:()=>Stage.groove,getGrid:()=>stPat,key:"stage"});
+const cssVar = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim() || "#888888";
+
+function initStage(){
+  if(Stage.ready) return true;
+  if(!window.THREE){
+    stView.append(h("div",{class:"stage-msg"},"3D表示を読み込めませんでした。インターネットに接続して開き直してください（音とリズム表は他のタブで使えます）。"));
+    return false;
+  }
+  const T = THREE;
+  const renderer = new T.WebGLRenderer({canvas:stCanvas,antialias:true,alpha:true});
+  renderer.setPixelRatio(Math.min(2,window.devicePixelRatio||1));
+  const scene = new T.Scene();
+  const cam = new T.PerspectiveCamera(34,1,0.1,100);
+  scene.add(new T.HemisphereLight(0xffffff,0x556070,0.95));
+  const dl = new T.DirectionalLight(0xffffff,0.75); dl.position.set(4,9,7); scene.add(dl);
+  const world = new T.Group(); scene.add(world);
+  const floorMat = new T.MeshLambertMaterial({color:cssVar("--surface")});
+  const floor = new T.Mesh(new T.CylinderGeometry(6.4,6.6,0.2,72),floorMat);
+  floor.position.y = -0.1; world.add(floor);
+  const lineup = new T.Group(); world.add(lineup);
+  Object.assign(Stage,{T,renderer,scene,cam,world,floor,floorMat,lineup,ready:true,ray:new T.Raycaster(),v:new T.Vector3()});
+
+  new ResizeObserver(resizeStage).observe(stView);
+  // ドラッグで回転・タップで選択
+  let down=null;
+  stCanvas.addEventListener("pointerdown",e=>{ down={x:e.clientX,y:e.clientY,rot:Stage.rot,moved:false}; stCanvas.setPointerCapture(e.pointerId); });
+  stCanvas.addEventListener("pointermove",e=>{ if(!down) return; const dx=e.clientX-down.x; if(Math.abs(dx)>5) down.moved=true; Stage.rot=Math.max(-1.1,Math.min(1.1,down.rot+dx*0.008)); });
+  stCanvas.addEventListener("pointerup",e=>{
+    if(down && !down.moved){
+      const r = stCanvas.getBoundingClientRect();
+      const m = new T.Vector2(((e.clientX-r.left)/r.width)*2-1,-((e.clientY-r.top)/r.height)*2+1);
+      Stage.ray.setFromCamera(m,cam);
+      const hit = Stage.ray.intersectObjects(Stage.perf.map(p=>p.hitbox))[0];
+      selectPerformer(hit ? hit.object.userData.idx : null);
+    }
+    down=null;
+  });
+  requestAnimationFrame(stageLoop);
+  return true;
+}
+function resizeStage(){
+  if(!Stage.ready) return;
+  const w = stView.clientWidth, hh = stView.clientHeight;
+  if(!w||!hh) return;
+  Stage.renderer.setSize(w,hh,false);
+  Stage.cam.aspect = w/hh; Stage.cam.updateProjectionMatrix();
+  const narrow = w < hh*1.05;
+  if(Stage.genre && Stage.perf.length && Stage.builtNarrow!==narrow){ buildLineup(Stage.genre.id); return; }
+  fitCamera();
+}
+function fitCamera(){
+  const cam = Stage.cam, L = Stage.layout || {width:4,depth:2};
+  const vt = Math.tan(cam.fov*Math.PI/360), ht = vt*cam.aspect;
+  const dH = (L.width/2+0.6)/ht, dV = 2.0/vt;
+  const d = Math.max(dH,dV) + L.depth*0.3;
+  cam.position.set(0, d*0.55+0.7, d);
+  cam.lookAt(0,0.75,-0.1);
+}
+
+/* ---- 3Dの部品 ---- */
+function M(c,p){ const m = new THREE.MeshLambertMaterial({color:c}); if(p) p.push(m); return m; }
+function cyl(rt,rb,ht,m,seg){ return new THREE.Mesh(new THREE.CylinderGeometry(rt,rb,ht,seg||20),m); }
+function drum(r,ht,side,head){ return new THREE.Mesh(new THREE.CylinderGeometry(r,r,ht,24),[side,head,head]); }
+function box(x,y,z,m){ return new THREE.Mesh(new THREE.BoxGeometry(x,y,z),m); }
+function at(o,x,y,z,rx,ry,rz){ o.position.set(x,y,z); o.rotation.set(rx||0,ry||0,rz||0); return o; }
+
+function buildInstrument(id,mats,armL,armR){
+  const T = THREE, g = new T.Group();
+  const metal = M(0xc3c8ce,mats), head = M(0xf3efe6,mats), wood = M(0x9a5b2e,mats), dark = M(0x23262b,mats), gold = M(0xd8a93a,mats), red = M(0xb7322c,mats);
+  const add = o => (g.add(o),o);
+  switch(id){
+    case "surdo1": case "surdo2": case "surdo3": {
+      const k = id==="surdo1"?1:id==="surdo2"?0.88:0.76;
+      add(at(drum(0.36*k,0.5*k,metal,head),0,0.95,0.44)); break; }
+    case "caixa": add(at(drum(0.28,0.16,metal,head),0,1.0,0.38,0.35)); break;
+    case "repique": add(at(drum(0.22,0.34,metal,head),0,1.0,0.36,0.3)); break;
+    case "snare": case "rim": add(at(drum(0.22,0.13,metal,head),0,0.86,0.42,0.2)); add(at(cyl(0.015,0.015,0.86,dark),0,0.43,0.42)); break;
+    case "tamborim": add(at(drum(0.13,0.05,dark,head),-0.24,1.36,0.4,Math.PI/2)); break;
+    case "pandeiro": add(at(drum(0.2,0.06,wood,head),-0.22,1.36,0.4,Math.PI/2)); break;
+    case "agogo": { const a=at(new T.Mesh(new T.ConeGeometry(0.07,0.24,16),metal),-0.24,1.32,0.42,0,0,Math.PI/2.4); const b=at(new T.Mesh(new T.ConeGeometry(0.055,0.19,16),metal),-0.24,1.22,0.42,0,0,Math.PI/2.4); add(a); add(b); break; }
+    case "chocalho": add(at(box(0.6,0.1,0.12,metal),0,1.32,0.42)); for(let i=-2;i<=2;i++) add(at(cyl(0.04,0.04,0.02,gold),i*0.12,1.38,0.42)); break;
+    case "cuica": add(at(drum(0.17,0.34,metal,head),-0.1,1.12,0.32,0,0,Math.PI/2)); break;
+    case "conga": add(at(new T.Mesh(new T.CylinderGeometry(0.22,0.17,0.8,24),[wood,head,head]),0,0.4,0.46)); break;
+    case "llamador": add(at(new T.Mesh(new T.CylinderGeometry(0.15,0.12,0.6,20),[wood,head,head]),0,0.62,0.44)); add(at(cyl(0.015,0.015,0.32,dark),0,0.16,0.44)); break;
+    case "bongo": add(at(drum(0.12,0.15,wood,head),-0.14,0.92,0.42)); add(at(drum(0.15,0.15,wood,head),0.16,0.92,0.42)); add(at(cyl(0.015,0.015,0.84,dark),0,0.42,0.42)); break;
+    case "timbale": add(at(drum(0.2,0.14,metal,head),-0.23,0.95,0.44)); add(at(drum(0.23,0.14,metal,head),0.23,0.95,0.44)); add(at(box(0.1,0.16,0.08,dark),0,1.12,0.5)); add(at(cyl(0.015,0.015,0.88,dark),0,0.44,0.44)); break;
+    case "cowbell": add(at(box(0.11,0.2,0.08,dark),-0.22,1.26,0.4,0,0,0.5)); break;
+    case "clave": add(at(cyl(0.02,0.02,0.24,wood),-0.08,1.34,0.48,0,0,1.2)); add(at(cyl(0.02,0.02,0.24,wood),0.08,1.34,0.48,0,0,-1.2)); break;
+    case "palitos": add(at(box(0.5,0.26,0.26,wood),0,0.86,0.46)); add(at(cyl(0.015,0.015,0.73,dark),0,0.36,0.46)); break;
+    case "guiro": add(at(cyl(0.06,0.06,0.46,gold),0,1.24,0.42,0,0,Math.PI/2)); break;
+    case "guira": add(at(cyl(0.06,0.06,0.38,metal),0,1.24,0.42,0,0,Math.PI/2)); break;
+    case "maracas": { const m1=at(new T.Mesh(new T.SphereGeometry(0.075,14,10),red),0,-0.66,0); const m2=at(new T.Mesh(new T.SphereGeometry(0.075,14,10),gold),0,-0.66,0); armL.add(m1); armR.add(m2); break; }
+    case "guitar": case "cavaco": {
+      const k = id==="cavaco"?0.65:1, gg = new T.Group();
+      const body = new T.Mesh(new T.SphereGeometry(0.3*k,20,14),wood); body.scale.set(1,1.15,0.32); gg.add(body);
+      gg.add(at(box(0.06,0.62*k,0.03,dark),0,0.55*k,0));
+      add(at(gg,0.02,1.1,0.27,0,0,-1.0)); break; }
+    case "bass": {
+      const gg = new T.Group();
+      const body = new T.Mesh(new T.SphereGeometry(0.32,20,14),wood); body.scale.set(1,1.5,0.4); gg.add(body);
+      gg.add(at(box(0.06,0.95,0.04,dark),0,0.9,0));
+      add(at(gg,0.18,0.78,0.38,0,0,-0.15)); break; }
+    case "piano": add(at(box(1.1,0.14,0.42,dark),0,0.9,0.5)); add(at(box(1.02,0.03,0.16,head),0,0.98,0.62)); add(at(box(0.08,0.84,0.3,dark),-0.48,0.42,0.5)); add(at(box(0.08,0.84,0.3,dark),0.48,0.42,0.5)); break;
+    case "brass": { const gg=new T.Group(); gg.add(at(cyl(0.025,0.025,0.42,gold),0,0,0)); gg.add(at(new T.Mesh(new T.CylinderGeometry(0.03,0.12,0.16,18,1,true),gold),0,0.28,0)); add(at(gg,0,1.52,0.38,Math.PI/2.2)); break; }
+    case "accordion": add(at(box(0.44,0.32,0.22,red),0,1.12,0.32)); add(at(box(0.08,0.32,0.23,head),-0.25,1.12,0.32)); break;
+    case "bandoneon": add(at(box(0.32,0.28,0.28,dark),0,1.12,0.32)); break;
+    case "kick": add(at(drum(0.3,0.3,red,head),0,0.32,0.46,Math.PI/2)); break;
+    case "hat": add(at(cyl(0.2,0.2,0.02,gold),0,1.02,0.42)); add(at(cyl(0.2,0.2,0.02,gold),0,1.05,0.42)); add(at(cyl(0.015,0.015,1.02,dark),0,0.51,0.42)); break;
+    case "tambora": add(at(drum(0.2,0.42,wood,head),0,0.98,0.36,0,0,Math.PI/2)); break;
+  }
+  return g;
+}
+
+function makePerformer(tr,idx){
+  const T = THREE, inst = INST[tr.inst], mats = [];
+  const g = new T.Group();
+  const shirt = M(cssVar("--c-"+inst.fam),mats), skin = M(SKINS[idx%SKINS.length],mats), pants = M(0x2a2e35,mats), hair = M(0x1b1714,mats);
+  for(const s of [-1,1]) g.add(at(cyl(0.075,0.068,0.8,pants),0.1*s,0.4,0));
+  g.add(at(cyl(0.2,0.24,0.62,shirt),0,1.11,0));
+  g.add(at(new T.Mesh(new T.SphereGeometry(0.16,18,14),skin),0,1.6,0));
+  g.add(at(new T.Mesh(new T.SphereGeometry(0.168,18,10,0,Math.PI*2,0,Math.PI/2.1),hair),0,1.62,-0.01));
+  const arm = s=>{
+    const piv = new T.Group(); piv.position.set(0.27*s,1.37,0);
+    piv.add(at(cyl(0.052,0.045,0.56,shirt),0,-0.28,0));
+    piv.add(at(new T.Mesh(new T.SphereGeometry(0.055,10,8),skin),0,-0.58,0));
+    if(STICKS.has(tr.inst) && !(s<0 && ["tamborim","agogo","cowbell"].includes(tr.inst)))
+      piv.add(at(cyl(0.012,0.012,0.4,M(0xd9b98a,mats)),0,-0.66,0.16,Math.PI/2.3));
+    g.add(piv); return piv;
+  };
+  const armL = arm(-1), armR = arm(1);
+  const ins = buildInstrument(tr.inst,mats,armL,armR);
+  g.add(ins);
+  const ring = at(new T.Mesh(new T.RingGeometry(0.4,0.52,48),new T.MeshBasicMaterial({color:cssVar("--c-"+inst.fam),transparent:true,opacity:0,side:T.DoubleSide})),0,0.02,0.15,-Math.PI/2);
+  const selRing = at(new T.Mesh(new T.RingGeometry(0.56,0.64,48),new T.MeshBasicMaterial({color:cssVar("--hot"),side:T.DoubleSide})),0,0.025,0.15,-Math.PI/2);
+  selRing.visible = false;
+  g.add(ring,selRing);
+  const hitbox = at(new T.Mesh(new T.BoxGeometry(1.1,2.1,1.1),new T.MeshBasicMaterial({visible:false})),0,1.05,0.2);
+  hitbox.userData.idx = idx; g.add(hitbox);
+  const label = h("button",{class:"plabel",onclick(){ selectPerformer(idx); }},tr.name);
+  stLabels.append(label);
+  return {g,armL,armR,ins,ring,selRing,hitbox,mats,label,tr,act:ACTION[tr.inst]||"strike",hits:[],last:null,count:0,phase:Math.random()*6};
+}
+
+function buildLineup(genreId){
+  const g = GENRE[genreId];
+  const wasPlaying = P.playing && P.btn===stT.btn;
+  Stage.genre = g; Stage.sel = null; Stage.solo = null;
+  const tracks = g.tracks.map(t=>({...t,on:true}));
+  Stage.muted = tracks.map(()=>false);
+  Stage.groove = {bpm:g._bpm,spb:g.spb,barSteps:g.barSteps,swing:g.swing,prog:g.prog,showChord:g.showChord,tracks,
+    onHit(tr,c,t){ const p = Stage.byTrack && Stage.byTrack.get(tr); if(p) p.hits.push({t,s:(c==="o"||c==="L"||c==="s"||(c==="h"&&p.tr.inst==="agogo"))?1:0.6}); }};
+  document.querySelectorAll("#stage-genres .gchip").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.id===genreId)));
+  stT.sync();
+  if(wasPlaying) swapGroove(Stage.groove,stPat);
+  if(!initStage()){ Stage.perf = []; renderSide(); return; }
+  // 古い演奏者を片付ける
+  Stage.perf.forEach(p=>{ Stage.lineup.remove(p.g); p.label.remove(); p.g.traverse(o=>{ if(o.geometry) o.geometry.dispose(); }); });
+  while(Stage.lineup.children.length) Stage.lineup.remove(Stage.lineup.children[0]);
+  // 並べ方：低音が後ろ、高い音が前。後ろの列ほど台の上に立つ
+  const order = tracks.map((t,i)=>i).sort((a,b)=>FAM_ORDER.indexOf(INST[tracks[a].inst].fam)-FAM_ORDER.indexOf(INST[tracks[b].inst].fam) || a-b);
+  const R = Math.ceil(tracks.length/4), per = Math.ceil(tracks.length/R);
+  const rows = []; for(let r=0;r<R;r++) rows.push(order.slice(r*per,(r+1)*per));
+  const narrow = stView.clientWidth < stView.clientHeight*1.05;
+  const sp = narrow ? 1.3 : 1.75, dz = narrow ? 1.7 : 2.0;
+  Stage.builtNarrow = narrow;
+  Stage.perf = tracks.map((t,i)=>makePerformer(t,i));
+  Stage.byTrack = new Map(Stage.perf.map(p=>[p.tr,p]));
+  const riserMat = new THREE.MeshLambertMaterial({color:cssVar("--line")});
+  let maxW = 0;
+  rows.forEach((row,r)=>{
+    const z = (r-(R-1)/2)*dz, y = (R-1-r)*0.32;
+    maxW = Math.max(maxW,(row.length-1)*sp+1.2);
+    if(y>0){ const rs = box(row.length*sp+0.4,y,1.7,riserMat); rs.position.set(0,y/2,z+0.1); Stage.lineup.add(rs); }
+    row.forEach((ti,k)=>{ const p = Stage.perf[ti]; p.g.position.set((k-(row.length-1)/2)*sp,y,z); p.baseY = y; Stage.lineup.add(p.g); });
+  });
+  Stage.layout = {width:maxW,depth:(R-1)*dz+1.2};
+  Stage.floorMat.color.set(cssVar("--surface"));
+  fitCamera();
+  renderSide();
+}
+
+function applyMix(){
+  Stage.groove.tracks.forEach((t,i)=>{ t.on = Stage.solo!=null ? i===Stage.solo : !Stage.muted[i]; });
+  Stage.perf.forEach(p=>{
+    const on = p.tr.on;
+    p.mats.forEach(m=>{ m.transparent = !on; m.opacity = on?1:0.22; m.needsUpdate = true; });
+    p.label.classList.toggle("muted",!on);
+  });
+}
+function selectPerformer(idx){
+  Stage.sel = idx;
+  if(!Stage.perf.length && idx!=null) Stage.sel = null;
+  Stage.perf.forEach((p,i)=>{ p.selRing.visible = i===idx; p.label.classList.toggle("sel",i===idx); });
+  renderSide();
+}
+
+function renderSide(){
+  const g = Stage.genre;
+  stSide.innerHTML = "";
+  if(!g) return;
+  if(Stage.sel==null){
+    stSide.append(
+      h("div",{},h("h3",{},g.name),h("p",{class:"sub"},g.orig+"・"+g.region+"・"+g.era)),
+      h("dl",{class:"facts"},h("dt",{},"テンポ"),h("dd",{},g.tempo),h("dt",{},"リズムの鍵"),h("dd",{},g.key)),
+      h("p",{class:"clue"},g.clue),
+      h("p",{class:"sub"},"演奏者をタップすると、その人のリズムと役割が見られます。"),
+      h("div",{class:"perf-chips"},Stage.perf.map((p,i)=>h("button",{class:"gchip",style:`--fc:var(--c-${INST[p.tr.inst].fam})`,onclick(){ selectPerformer(i); }},h("i"),p.tr.name))));
+    if(P.playing && P.btn===stT.btn) setNow(stPat,null);
+    return;
+  }
+  const i = Stage.sel, tr = Stage.groove.tracks[i], inst = INST[tr.inst];
+  const part = g.id==="samba" ? SAMBA_PARTS.find(s=>s.name===tr.name) : null;
+  const desc = part ? part.desc : (INST_INFO[tr.inst]||"");
+  const soloBtn = h("button",{class:"btn","aria-pressed":String(Stage.solo===i),onclick(){ Stage.solo = Stage.solo===i?null:i; applyMix(); renderSide(); }},"この人だけ聴く");
+  const muteBtn = h("button",{class:"btn","aria-pressed":String(!!Stage.muted[i]),onclick(){ Stage.muted[i]=!Stage.muted[i]; Stage.solo=null; applyMix(); renderSide(); }},"ミュート");
+  const used = [...new Set(tr.p.replace(/\./g,""))];
+  stSide.append(
+    h("button",{class:"side-back",onclick(){ selectPerformer(null); }},"← "+g.name+" の全体にもどる"),
+    h("div",{class:"side-head",style:`--fc:var(--c-${inst.fam})`},h("span",{class:"sw"}),h("div",{},h("b",{},tr.name),h("small",{},tr.role||""))),
+    h("div",{class:"side-actions"},soloBtn,muteBtn),
+    stPat,
+    h("div",{class:"side-legend"},used.map(c=>h("span",{},h("b",{},(inst.glyph&&inst.glyph[c])||GLYPH[c]||c),inst.legend[c]||""))),
+    h("p",{style:"font-size:13.5px"},desc));
+  buildGrid(stPat,{spb:g.spb,barSteps:g.barSteps,tracks:[tr]},{key:"stage",onChange(){ Stage.muted[i]=!tr.on; Stage.solo=null; applyMix(); renderSide(); }});
+}
+
+/* ---- 毎フレームの動き ---- */
+function stageLoop(tm){
+  requestAnimationFrame(stageLoop);
+  if(document.getElementById("panel-stage").hidden || !Stage.perf.length) return;
+  const now = ctx ? ctx.currentTime : 0, T = THREE;
+  const playing = P.playing && P.groove===Stage.groove;
+  Stage.world.rotation.y += (Stage.rot - Stage.world.rotation.y)*0.15;
+  const time = tm/1000;
+  Stage.perf.forEach(p=>{
+    while(p.hits.length && p.hits[0].t<=now){ p.last = p.hits.shift(); p.count++; }
+    if(!playing){ p.hits.length = 0; }
+    const dt = p.last && playing ? now-p.last.t : 99;
+    const e = Math.exp(-dt*12), s = p.last ? p.last.s : 0;
+    const up = 1-Math.exp(-dt*7);
+    let aL = -0.95, aR = -0.95;
+    switch(p.act){
+      case "strike": aR = -0.7 - 0.75*up; aL = -0.85; break;
+      case "alt": { const right = p.count%2===1; const v = -0.7-0.7*up; if(right){ aR=v; aL=-1.3; } else { aL=v; aR=-1.3; } break; }
+      case "clap": aL = aR = -1.15 + 0.15*e; break;
+      case "shake": aL = aR = -1.0 - 0.28*e*s - 0.05; break;
+      case "keys": aL = aR = -0.62 + 0.12*e; break;
+      case "strum": aR = -0.8; aL = -1.2; p.armR.rotation.z = 0.35 - 0.4*e; break;
+      default: aL = aR = -1.0;
+    }
+    p.armL.rotation.x = aL; p.armR.rotation.x = aR;
+    const k = 1 + 0.07*e*(0.6+s);
+    if(p.act==="squeeze") p.ins.scale.set(1+0.25*e,1,1); else p.ins.scale.set(k,k,k);
+    p.ring.material.opacity = 0.85*Math.exp(-dt*5)*(0.5+s/2);
+    const rs = 1 + 0.6*(1-Math.exp(-dt*5)); p.ring.scale.set(rs,rs,rs);
+    p.g.position.y = p.baseY + (playing ? 0.025*Math.sin(time*6+p.phase) : 0.01*Math.sin(time*1.5+p.phase));
+  });
+  Stage.renderer.render(Stage.scene,Stage.cam);
+  // 名札を頭の上に
+  const r = stView.getBoundingClientRect(), v = Stage.v;
+  Stage.perf.forEach(p=>{
+    p.g.localToWorld(v.set(0,2.0-(p.g.position.y-p.baseY),0)); v.project(Stage.cam);
+    p.label.style.transform = `translate(${(v.x+1)/2*r.width}px,${(1-v.y)/2*r.height}px) translate(-50%,-100%)`;
+  });
+}
+
+/* ジャンル選び */
+document.getElementById("stage-genres").append(...GENRES.map(g=>h("button",{class:"gchip","data-id":g.id,"aria-pressed":"false",onclick(){ buildLineup(g.id); }},g.name)));
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change",()=>{ if(Stage.genre) buildLineup(Stage.genre.id); });
+buildLineup("samba");
+
 /* 比較表 */
 const cmp = document.getElementById("cmp");
 cmp.append(h("thead",{},h("tr",{},["ジャンル","地域","時代","拍子","テンポ","リズムの鍵","聴き分けのコツ"].map(x=>h("th",{scope:"col"},x)))),
@@ -1239,9 +1625,10 @@ function renderQuiz(){
    8. タブ切り替え
    ================================================================ */
 function route(){
-  const tab = (location.hash||"#generator").slice(1);
-  const valid = ["generator","genres","compare","quiz"].includes(tab) ? tab : "generator";
+  const tab = (location.hash||"#stage").slice(1);
+  const valid = ["stage","generator","genres","compare","quiz"].includes(tab) ? tab : "stage";
   document.querySelectorAll("[data-panel]").forEach(p=>p.hidden = p.dataset.panel!==valid);
+  document.body.dataset.tab = valid;
   document.querySelectorAll("nav.tabs a").forEach(a=>{ if(a.dataset.tab===valid) a.setAttribute("aria-current","page"); else a.removeAttribute("aria-current"); });
   stop();
 }
