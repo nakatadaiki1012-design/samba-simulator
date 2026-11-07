@@ -43,15 +43,15 @@ button,select,input{font:inherit;color:inherit}
 .mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
 
 /* header */
-header.top{padding-block:28px 8px;display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px 24px}
-.brand h1{font-family:var(--f-display);font-weight:400;font-size:clamp(28px,6vw,46px);letter-spacing:.01em}
+header.top{padding-block:20px 4px;display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px 24px}
+.brand h1{font-family:var(--f-display);font-weight:400;font-size:clamp(24px,5vw,34px);letter-spacing:.01em}
 .brand h1 .dot{color:var(--hot)}
 .brand p{color:var(--muted);font-size:14px;margin-top:4px}
 nav.tabs{display:flex;gap:4px;background:var(--surface-2);padding:4px;border-radius:999px;flex-wrap:wrap}
 nav.tabs a{padding:8px 16px;border-radius:999px;text-decoration:none;color:var(--muted);font-weight:700;font-size:14px;white-space:nowrap}
 nav.tabs a[aria-current="page"]{background:var(--fg);color:var(--bg)}
 
-section.panel{padding-top:20px;display:flex;flex-direction:column;gap:28px}
+section.panel{padding-top:12px;display:flex;flex-direction:column;gap:20px}
 .sec-title{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
 .sec-title h2{font-family:var(--f-display);font-weight:400;font-size:clamp(20px,3.6vw,26px)}
 .sec-title span{color:var(--muted);font-size:13px}
@@ -59,8 +59,8 @@ section.panel{padding-top:20px;display:flex;flex-direction:column;gap:28px}
 
 /* transport */
 body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
-.transport{display:flex;flex-wrap:wrap;align-items:center;gap:10px 20px;padding:12px 16px;background:var(--surface);border:1px solid var(--line);border-radius:14px}
-.transport.sticky{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;box-shadow:0 6px 20px -14px rgba(0,0,0,.45)}
+.transport{display:flex;flex-wrap:wrap;align-items:center;gap:10px 20px;padding:10px 0;background:var(--bg)}
+.transport.sticky{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;border-bottom:1px solid var(--line)}
 .play{display:inline-flex;align-items:center;gap:8px;border:0;border-radius:999px;padding:10px 22px;background:var(--accent);color:var(--accent-fg);font-weight:700;font-size:16px;cursor:pointer;min-width:118px;justify-content:center}
 .play[aria-pressed="true"]{background:var(--fg);color:var(--bg)}
 .play svg{width:14px;height:14px;fill:currentColor}
@@ -77,16 +77,20 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .chips{display:flex;flex-wrap:wrap;gap:8px}
 
 /* lesson */
-.lesson{display:grid;grid-template-columns:auto 1fr auto;gap:16px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px 18px}
+.lesson{display:grid;grid-template-columns:auto 1fr auto;gap:16px;align-items:center}
 .lesson .num{font-family:var(--f-display);font-size:34px;line-height:1;color:var(--hot);min-width:2.2ch;text-align:center}
 .lesson .num small{display:block;font-family:var(--f-mono);font-size:11px;color:var(--muted);margin-top:4px}
 .lesson h3{font-size:17px}
 .lesson p{color:var(--muted);font-size:14px;margin-top:4px;max-width:70ch}
 .lesson .nav{display:flex;gap:6px}
-@media (max-width:640px){.lesson{grid-template-columns:auto 1fr}.lesson .nav{grid-column:1/-1}}
+@media (max-width:640px){.lesson{grid-template-columns:auto 1fr;gap:12px}.lesson .num{font-size:26px}.lesson .nav{grid-column:1/-1}}
+@media (max-width:560px){nav.tabs{width:100%;flex-wrap:nowrap}nav.tabs a{flex:1;text-align:center;padding:8px 4px;font-size:13px}.knob input[type=range]{width:110px}.play{min-width:96px;padding:9px 16px}.transport{gap:8px 14px}}
 
 /* grid */
-.grid{display:flex;flex-direction:column;gap:6px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px}
+.grid{display:flex;flex-direction:column;gap:6px;background:var(--surface);border-radius:14px;padding:14px}
+.row-between{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-start;gap:12px}
+.name-btn{all:unset;cursor:pointer;min-width:0;flex:1;line-height:1.3}
+.name-btn:focus-visible{outline:2px solid var(--accent)}
 .trk{display:grid;grid-template-columns:minmax(270px,330px) minmax(0,1fr);gap:6px 14px;align-items:center;--fc:var(--accent)}
 .trk-head{display:flex;align-items:center;gap:8px;min-width:0}
 .trk-name{min-width:0;flex:1;line-height:1.3}
@@ -141,7 +145,7 @@ details.help > div{margin-top:8px;display:flex;flex-direction:column;gap:8px}
 .gname h3{font-family:var(--f-display);font-weight:400;font-size:clamp(26px,5vw,38px)}
 .gname em{font-style:normal;font-family:var(--f-mono);color:var(--muted);font-size:14px}
 .gtext{display:flex;flex-direction:column;gap:12px;max-width:66ch}
-.facts{display:grid;grid-template-columns:auto minmax(0,1fr);gap:6px 14px;margin:0;font-size:14px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+.facts{display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px 14px;margin:0;font-size:14px;align-content:start}
 .facts dt{color:var(--muted);font-size:12.5px;padding-top:2px;white-space:nowrap}
 .facts dd{margin:0}
 .points{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px}
@@ -155,9 +159,9 @@ details.help > div{margin-top:8px;display:flex;flex-direction:column;gap:8px}
 /* tree */
 .tree{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
 @media (max-width:760px){.tree{grid-template-columns:minmax(0,1fr)}}
-.tree .col{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:6px}
+.tree .col{background:var(--surface);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:6px}
 .tree .col h3{font-size:14px;color:var(--muted);letter-spacing:.06em}
-.tnode{display:flex;justify-content:space-between;gap:10px;align-items:baseline;border:1px solid var(--line);background:var(--bg);border-radius:10px;padding:8px 12px;cursor:pointer;text-align:left;width:100%}
+.tnode{display:flex;justify-content:space-between;gap:10px;align-items:baseline;border:1px solid transparent;background:var(--bg);border-radius:10px;padding:8px 12px;cursor:pointer;text-align:left;width:100%}
 .tnode:hover{border-color:var(--fg)}
 .tnode b{font-size:14.5px}
 .tnode span{font-family:var(--f-mono);font-size:11.5px;color:var(--muted);white-space:nowrap}
@@ -166,7 +170,7 @@ details.help > div{margin-top:8px;display:flex;flex-direction:column;gap:8px}
 .tarrow.side{text-align:left;padding-left:12px}
 
 /* table */
-.tablewrap{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:14px}
+.tablewrap{overflow-x:auto;background:var(--surface);border-radius:14px}
 table.cmp{border-collapse:collapse;width:100%;min-width:860px;font-size:13px}
 table.cmp th,table.cmp td{padding:10px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}
 table.cmp thead th{font-size:12px;color:var(--muted);font-weight:700;background:var(--surface-2);position:sticky;top:0}
@@ -175,7 +179,7 @@ table.cmp tbody th button{all:unset;cursor:pointer;font-weight:700;text-decorati
 table.cmp tbody tr:last-child td,table.cmp tbody tr:last-child th{border-bottom:0}
 
 /* quiz */
-.quiz{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:20px;display:flex;flex-direction:column;gap:18px}
+.quiz{background:var(--surface);border-radius:14px;padding:20px;display:flex;flex-direction:column;gap:18px}
 .quiz-top{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between}
 .score{font-family:var(--f-mono);font-size:14px;color:var(--muted)}
 .score b{color:var(--fg);font-size:20px}
@@ -201,69 +205,65 @@ footer{margin-top:40px;color:var(--muted);font-size:12px;border-top:1px solid va
   <header class="top">
     <div class="brand">
       <h1>サンバ<span class="dot">・</span>シミュレーター</h1>
-      <p>楽器を1つずつ重ねて、サンバやラテン音楽のリズムができる仕組みを耳で学ぶ</p>
     </div>
     <nav class="tabs" aria-label="画面の切り替え">
-      <a href="#generator" data-tab="generator">サンバを組み立てる</a>
-      <a href="#genres" data-tab="genres">ラテン音楽を比べる</a>
-      <a href="#quiz" data-tab="quiz">聴き分けクイズ</a>
+      <a href="#generator" data-tab="generator">組み立てる</a>
+      <a href="#genres" data-tab="genres">ジャンル</a>
+      <a href="#compare" data-tab="compare">違いを知る</a>
+      <a href="#quiz" data-tab="quiz">クイズ</a>
     </nav>
   </header>
 
   <!-- ============ サンバ・ジェネレーター ============ -->
   <section class="panel" id="panel-generator" data-panel="generator">
     <div class="transport sticky" id="gen-transport"></div>
-
     <div class="lesson" id="lesson"></div>
-
-    <div class="sec-title"><h2>バテリア（打楽器隊）</h2><span>左の四角でオン・オフ／マスをタップで音を書きかえ／メニューでパターン変更</span></div>
-    <div class="chips" id="gen-presets"></div>
     <div id="gen-grid" class="grid"></div>
-    <div class="legend" id="legend"></div>
-    <details class="help">
-      <summary>この表の読み方</summary>
-      <div>
-        <p>横一列が1つの楽器、1マスが16分音符1つぶんです。左から右へ光が進み、色のついたマスで音が鳴ります。濃い色は強い音（アクセント）、薄い色は弱い音です。</p>
-        <p>サンバは2拍子です。上の数字「1・2」が拍で、縦の線が小節の区切り。2小節で1周します。</p>
-        <p>「ゆらぎ」はブラジルらしい“はね”の量です。0にすると機械的に、上げるとサンバらしく揺れます。</p>
-      </div>
-    </details>
+    <div class="row-between">
+      <div class="chips" id="gen-presets"></div>
+      <details class="help">
+        <summary>表の読み方</summary>
+        <div>
+          <p>横一列が1つの楽器、1マスが16分音符1つぶん。光が左から右へ進み、色のついたマスで音が鳴ります（濃い＝強く、薄い＝弱く）。</p>
+          <p>マスをタップで音を書きかえ、左の四角でオン・オフ、楽器名をタップで説明が出ます。</p>
+          <p>「ゆらぎ」はブラジルらしい“はね”の量。0にすると機械的になります。</p>
+          <div class="legend" id="legend"></div>
+        </div>
+      </details>
+    </div>
   </section>
 
-  <!-- ============ ジャンル比較 ============ -->
+  <!-- ============ ジャンル ============ -->
   <section class="panel" id="panel-genres" data-panel="genres" hidden>
     <div class="genre-pick" id="genre-pick"></div>
-
-    <div class="gdetail" id="gdetail">
-      <div class="gtext" id="gtext"></div>
-      <div style="display:flex;flex-direction:column;gap:14px;min-width:0">
-        <dl class="facts" id="gfacts"></dl>
-      </div>
-    </div>
+    <div class="gname" id="gname"></div>
     <div class="transport" id="genre-transport"></div>
     <div id="genre-grid" class="grid"></div>
-    <p class="note">左の四角で楽器を消すと、どの音がそのジャンルらしさを作っているか聴き比べられます。リズムは学習用に簡略化しています。</p>
-
-    <div class="sec-title"><h2>カギになるリズム型「クラーベ」</h2><span>ラテン音楽の“背骨”</span></div>
-    <p class="lead">キューバ系の音楽では、2小節で1周する「クラーベ」というリズム型をすべての楽器が基準にします。左右で音の数が違う（3つと2つ）のがポイントで、どちらから始めるかで「3-2」「2-3」と呼びます。一番下のトレシージョ（3＋3＋2）は、タンゴやレゲトンにも出てくるラテン音楽共通の遺伝子です。</p>
-    <div class="clave-box">
-      <div class="chips" id="clave-pick"></div>
-      <div class="transport" id="clave-transport"></div>
-      <div id="clave-grid" class="grid"></div>
-      <p class="note" id="clave-note"></p>
+    <div class="gdetail" id="gdetail">
+      <div class="gtext" id="gtext"></div>
+      <dl class="facts" id="gfacts"></dl>
     </div>
+  </section>
 
-    <div class="sec-title"><h2>ラテン音楽の家系図</h2><span>名前を押すと上で聴けます</span></div>
+  <!-- ============ 違いを知る ============ -->
+  <section class="panel" id="panel-compare" data-panel="compare" hidden>
+    <div class="sec-title"><h2>カギになるリズム型「クラーベ」</h2></div>
+    <p class="lead">キューバ系の音楽は、2小節で1周する「クラーベ」をすべての楽器の基準にします。音の数が3つと2つに分かれ、どちらから始めるかで「3-2」「2-3」と呼びます。</p>
+    <div class="chips" id="clave-pick"></div>
+    <div class="transport" id="clave-transport"></div>
+    <div id="clave-grid" class="grid"></div>
+    <p class="note" id="clave-note"></p>
+
+    <div class="sec-title"><h2>ラテン音楽の家系図</h2></div>
     <div class="tree" id="tree"></div>
 
-    <div class="sec-title"><h2>ひと目でわかる比較表</h2></div>
+    <div class="sec-title"><h2>比較表</h2></div>
     <div class="tablewrap"><table class="cmp" id="cmp"></table></div>
   </section>
 
   <!-- ============ クイズ ============ -->
   <section class="panel" id="panel-quiz" data-panel="quiz" hidden>
     <div class="sec-title"><h2>このリズム、なんの音楽？</h2></div>
-    <p class="lead">流れてくるリズムを聴いて、どのジャンルか当ててみましょう。わからなければ「ラテン音楽を比べる」で聴き直してから挑戦！</p>
     <div class="quiz" id="quiz"></div>
   </section>
 
@@ -478,7 +478,7 @@ const SAMBA_PROG = ["C6","A7","Dm7","G7"];
 
 const LESSONS = [
   {t:"スルド（1番）だけ",set:{surdo1:0},
-   x:"サンバの心臓です。いちばん低い太鼓が1拍目は押さえて短く（×）、2拍目は思い切り響かせます（●）。「2拍目が重い」がサンバ最大の特徴です。"},
+   x:"サンバの心臓です。いちばん低い太鼓が1拍目は押さえて短く（×）、2拍目は思い切り響かせます（濃い色）。「2拍目が重い」がサンバ最大の特徴です。"},
   {t:"スルド（2番）が答える",set:{surdo1:0,surdo2:0},
    x:"少し高い2番スルドが、1番とは逆に1拍目を響かせます。「ドン・ドーン」と2台が会話するように答え合い、サンバの低音ができあがります。"},
   {t:"スルド（3番）で個性を出す",set:{surdo1:0,surdo2:0,surdo3:0},
@@ -748,7 +748,9 @@ function trackRow(el,g,tr,ti,opts){
   const row = h("div",{class:"trk"+(tr.on?"":" off"),style:`--fc:var(--c-${inst.fam})`});
   const tg = h("button",{class:"tg","aria-pressed":String(tr.on),"aria-label":tr.name+" のオン・オフ",title:"オン／オフ",
     onclick(){ tr.on=!tr.on; row.classList.toggle("off",!tr.on); tg.setAttribute("aria-pressed",String(tr.on)); opts.onChange&&opts.onChange(); }});
-  const head = h("div",{class:"trk-head"},tg,h("div",{class:"trk-name"},h("b",{},tr.name),tr.role?h("small",{},tr.role):null));
+  const nameEl = tr.desc ? h("button",{class:"name-btn trk-name","aria-expanded":"false",title:"タップで説明"},h("b",{},tr.name),tr.role?h("small",{},tr.role):null)
+                        : h("div",{class:"trk-name"},h("b",{},tr.name),tr.role?h("small",{},tr.role):null);
+  const head = h("div",{class:"trk-head"},tg,nameEl);
   let sel = null;
   if(opts.editable && tr.variants){
     sel = h("select",{id:`sel-${opts.key||"g"}-${tr.id||ti}`,"aria-label":tr.name+" のパターン"},
@@ -759,9 +761,7 @@ function trackRow(el,g,tr,ti,opts){
   }
   let desc = null;
   if(tr.desc){
-    const ib = h("button",{class:"info-btn","aria-expanded":"false","aria-label":tr.name+" の説明",title:"説明"},"?");
-    ib.addEventListener("click",()=>{ const open = ib.getAttribute("aria-expanded")!=="true"; ib.setAttribute("aria-expanded",String(open)); desc.hidden=!open; });
-    head.append(ib);
+    nameEl.addEventListener("click",()=>{ const open = nameEl.getAttribute("aria-expanded")!=="true"; nameEl.setAttribute("aria-expanded",String(open)); desc.hidden=!open; });
     desc = h("p",{class:"trk-desc",hidden:true},tr.desc);
   }
   const cells = [];
@@ -769,7 +769,7 @@ function trackRow(el,g,tr,ti,opts){
     const c = cells[i], ch = tr.p[i]||".";
     const on = ch!==".";
     c.className = "cell"+(i%g.spb===0?" b":"")+(on?" on":"")+(on&&weak.includes(ch)?" weak":"")+(i===el._now?" now":"");
-    c.textContent = on ? ((inst.glyph&&inst.glyph[ch])||GLYPH[ch]||ch) : "";
+    c.textContent = on && ch!=="o" && ch!=="x" ? ((inst.glyph&&inst.glyph[ch])||GLYPH[ch]||ch) : "";
     c.title = on ? (inst.legend[ch]||"") : "休み";
   };
   const paintAll = ()=>cells.forEach((_,i)=>paint(i));
@@ -846,7 +846,7 @@ function renderLesson(){
   const next = h("button",{class:"btn primary",disabled:lessonIdx===LESSONS.length-1,onclick(){ lessonIdx++; renderLesson(); }},"次へ →");
   el.append(
     h("div",{class:"num"},String(lessonIdx+1),h("small",{},"/ "+LESSONS.length)),
-    h("div",{},h("h3",{},"ステップで組み立てる：",L.t),h("p",{},L.x)),
+    h("div",{},h("h3",{},L.t),h("p",{},L.x)),
     h("div",{class:"nav"},prev,next));
   applySet(L.set);
 }
@@ -868,7 +868,7 @@ document.getElementById("gen-presets").append(...PRESETS.map(pr=>h("button",{cla
 const FAMS = [["low","低音の太鼓"],["mid","中音の太鼓"],["high","高音・金属・木"],["shake","シェイカー・こすり系"],["harm","ベース・和音"]];
 document.getElementById("legend").append(
   ...FAMS.map(([f,n])=>h("span",{},h("i",{style:`background:var(--c-${f})`}),n)),
-  ...[["●","強く／響かせる"],["•","弱く"],["×","ミュート"],["▲▼","高い音／低い音"]].map(([s,n])=>h("span",{class:"sym"},h("b",{},s),n)));
+  ...[["×","ミュート"],["▲▼","高い音／低い音"]].map(([s,n])=>h("span",{class:"sym"},h("b",{},s),n)));
 
 /* ================================================================
    6. ジャンル比較画面
@@ -892,18 +892,19 @@ function selectGenre(id,scroll){
   pick.querySelectorAll(".gchip").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.id===id)));
   const tx = document.getElementById("gtext");
   tx.innerHTML = "";
-  tx.append(h("div",{class:"gname"},h("h3",{},g.name),h("em",{},g.orig)),
-    ...g.desc.map(d=>h("p",{},d)),
+  const gn = document.getElementById("gname");
+  gn.innerHTML = ""; gn.append(h("h3",{},g.name),h("em",{},g.orig));
+  tx.append(...g.desc.map(d=>h("p",{},d)),
     h("h4",{style:"margin:6px 0 0;font-size:14px"},"聴きどころ"),
     h("ul",{class:"points"},g.points.map(p=>h("li",{},p))));
   const f = document.getElementById("gfacts");
   f.innerHTML = "";
-  [["地域",g.region],["生まれた時代",g.era],["拍子",g.meter],["テンポの目安",g.tempo],["リズムの鍵",g.key],["主な楽器",g.insts],["コード進行（この例）",g.showChord?g.prog.join(" → "):"なし（打楽器と歌だけ）"]]
+  [["地域",g.region],["時代",g.era],["テンポ",g.tempo],["リズムの鍵",g.key],["楽器",g.insts]]
     .forEach(([k,v])=>f.append(h("dt",{},k),h("dd",{},v)));
   buildGrid(gGrid,g,{key:g.id,rulerLabel:g.spb===2?"拍（8分音符）":"拍（16分音符）"});
   gT.sync();
   if(P.playing && P.btn===gT.btn) swapGroove(g,gGrid);
-  if(scroll) document.getElementById("gdetail").scrollIntoView({behavior:"smooth",block:"start"});
+  if(scroll){ if(location.hash!=="#genres"){ location.hash="genres"; route(); } window.scrollTo({top:0}); }
 }
 
 /* クラーベ */
@@ -992,7 +993,7 @@ function renderQuiz(){
       h("p",{},"ヒント："+Q.ans.clue),
       h("div",{class:"chips"},
         h("button",{class:"btn primary",onclick:newQuestion},"次の問題 →"),
-        h("button",{class:"btn",onclick(){ stop(); location.hash="genres"; selectGenre(Q.ans.id,true); }},"「"+Q.ans.name+"」を詳しく見る"))));
+        h("button",{class:"btn",onclick(){ stop(); selectGenre(Q.ans.id,true); }},"「"+Q.ans.name+"」を詳しく見る"))));
   }
 }
 
@@ -1001,7 +1002,7 @@ function renderQuiz(){
    ================================================================ */
 function route(){
   const tab = (location.hash||"#generator").slice(1);
-  const valid = ["generator","genres","quiz"].includes(tab) ? tab : "generator";
+  const valid = ["generator","genres","compare","quiz"].includes(tab) ? tab : "generator";
   document.querySelectorAll("[data-panel]").forEach(p=>p.hidden = p.dataset.panel!==valid);
   document.querySelectorAll("nav.tabs a").forEach(a=>{ if(a.dataset.tab===valid) a.setAttribute("aria-current","page"); else a.removeAttribute("aria-current"); });
   stop();
