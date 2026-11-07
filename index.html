@@ -220,8 +220,8 @@ details.help > div{margin-top:8px;display:flex;flex-direction:column;gap:8px}
 .side-text{font-size:13.5px}
 .btn.carnival{font-size:13px;padding:6px 14px}
 .btn.carnival[aria-pressed="true"]{background:var(--hot);color:var(--hot-fg);border-color:transparent}
-.stage-view.night{background:#1a1233}
-.stage-view.night .stage-hint{color:#b9b0d8}
+.stage-view.street{background:#9fd6f2}
+.stage-view.street .stage-hint{color:#2b4a5c}
 /* compare */
 .vs{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:10px;align-items:center}
 .vs select{font-size:16px;font-weight:700;padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:var(--surface);width:100%}
@@ -416,12 +416,13 @@ footer{margin-top:40px;color:var(--muted);font-size:12px;border-top:1px solid va
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="sounds.js"></script>
 <script>
 "use strict";
 /* ================================================================
    1. 音を作る部分（Web Audio API で太鼓や楽器の音を合成）
    ================================================================ */
-let ctx = null, out = null, noiseBuf = null;
+let ctx = null, out = null, noiseBuf = null, revSend = null;
 function ensureAudio(){
   if(!ctx){
     const AC = window.AudioContext || window.webkitAudioContext;
@@ -430,6 +431,13 @@ function ensureAudio(){
     comp.threshold.value = -16; comp.ratio.value = 4; comp.attack.value = 0.003; comp.release.value = 0.15;
     out = ctx.createGain(); out.gain.value = 0.75;
     out.connect(comp); comp.connect(ctx.destination);
+    // 響き（リバーブ）：部屋や街に音が広がる感じを足す
+    const rev = ctx.createConvolver(), irLen = Math.floor(ctx.sampleRate*1.6), ir = ctx.createBuffer(2,irLen,ctx.sampleRate);
+    for(let ch=0;ch<2;ch++){ const d = ir.getChannelData(ch); for(let i=0;i<irLen;i++){ const tt=i/ctx.sampleRate; d[i]=(Math.random()*2-1)*Math.pow(1-i/irLen,2.4)*(tt<0.012?0:1)*(tt>0.045&&tt<0.05?3:1); } }
+    rev.buffer = ir;
+    revSend = ctx.createGain(); revSend.gain.value = 0.2;
+    out.connect(revSend); revSend.connect(rev); rev.connect(comp);
+    loadSamples();
     noiseBuf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
     const d = noiseBuf.getChannelData(0);
     for(let i=0;i<d.length;i++) d[i] = Math.random()*2-1;
@@ -578,6 +586,115 @@ const INST = {
   click:{fam:"shake",cycle:[".","x"],legend:{x:"拍"},weak:["x"],
     play(t,c,v){ tone(t,{f:1200,dur:0.025,vol:0.12*v}); }},
 };
+
+
+/* ================================================================
+   1b. 録音サンプルで鳴らす（読み込めない時は上の合成音で鳴らす）
+   ================================================================ */
+const BUF = {};
+const NOTE_IDX = {C:0,Db:1,D:2,Eb:3,E:4,F:5,Gb:6,G:7,Ab:8,A:9,Bb:10,B:11};
+const PITCHED = {};   // "gtr" → [{midi,key}]
+function loadSamples(){
+  if(!window.SAMPLES || !ctx) return;
+  Object.entries(window.SAMPLES).forEach(([key,b64])=>{
+    const bin = atob(b64), u8 = new Uint8Array(bin.length);
+    for(let i=0;i<bin.length;i++) u8[i] = bin.charCodeAt(i);
+    const done = buf=>{
+      BUF[key] = buf;
+      const [pre,n] = key.split(":");
+      if(pre!=="d"){ const m = /^([A-G]b?)(\d)$/.exec(n); const midi = (+m[2]+1)*12+NOTE_IDX[m[1]]; (PITCHED[pre]=PITCHED[pre]||[]).push({midi,key}); }
+    };
+    try{ const pr = ctx.decodeAudioData(u8.buffer,done,()=>{}); if(pr && pr.catch) pr.catch(()=>{}); }catch(e){}
+  });
+}
+function hit(key,t,v,o){
+  const b = BUF[key]; if(!b) return false;
+  o = o||{};
+  const n = o.ens||1;
+  for(let k=0;k<n;k++){
+    const tt = t + (k ? 0.004+Math.random()*0.016 : 0);
+    const src = ctx.createBufferSource(); src.buffer = b;
+    src.playbackRate.value = (o.rate||1)*(k ? 1+(Math.random()-0.5)*0.05 : 1);
+    const g = ctx.createGain(), vol = Math.max(0.0002, v*(k?0.75:1)/Math.sqrt(n));
+    g.gain.setValueAtTime(vol,tt);
+    let node = g;
+    if(ctx.createStereoPanner){ const pn = ctx.createStereoPanner(); pn.pan.value = Math.max(-1,Math.min(1,(o.pan||0)+(k?(Math.random()-0.5)*0.5:0))); g.connect(pn); node = pn; }
+    src.connect(g); node.connect(out);
+    if(o.dur){ g.gain.setValueAtTime(vol,tt+o.dur*0.6); g.gain.exponentialRampToValueAtTime(0.0001,tt+o.dur); src.start(tt); src.stop(tt+o.dur+0.03); }
+    else src.start(tt);
+  }
+  return true;
+}
+function pitched(pre,midi,t,v,o){
+  const list = PITCHED[pre]; if(!list || !list.length) return false;
+  let best = list[0]; for(const s of list) if(Math.abs(s.midi-midi)<Math.abs(best.midi-midi)) best = s;
+  return hit(best.key,t,v,{...o,rate:Math.pow(2,(midi-best.midi)/12)});
+}
+function chordS(pre,ch,base,t,v,o,stagger){
+  const notes = voicing(ch,base); let ok = true;
+  notes.forEach((m,k)=>{ ok = pitched(pre,m,t+k*(stagger||0),v,o) && ok; });
+  return ok;
+}
+const ENS = {surdo1:2,surdo2:2,surdo3:1,caixa:3,tamborim:3,chocalho:3,repique:1,agogo:1,cuica:1};
+/* 楽器ごとに、どの録音をどう鳴らすか */
+const SMAP = {
+  surdo1:(t,c,v,i)=>surdoS(t,c,v,i,0.6), surdo2:(t,c,v,i)=>surdoS(t,c,v,i,0.7), surdo3:(t,c,v,i)=>surdoS(t,c,v,i,0.82),
+  caixa:(t,c,v,i)=>hit("d:D2",t,v*(c==="o"?0.75:0.38),{rate:1.28,dur:0.22,pan:i.pan,ens:i.ens}),
+  repique:(t,c,v,i)=>hit("d:D3",t,v*(c==="o"?0.9:0.5),{rate:1.55,dur:0.3,pan:i.pan,ens:i.ens}),
+  tamborim:(t,c,v,i)=>hit("d:F4",t,v*(c==="o"?0.8:0.6),{rate:1.85,dur:0.09,pan:i.pan,ens:i.ens}),
+  agogo:(t,c,v,i)=>hit(c==="h"?"d:G4":"d:Ab4",t,v*0.7,{pan:i.pan}),
+  chocalho:(t,c,v,i)=>hit("d:Gb3",t,v*(c==="o"?0.5:0.26),{dur:0.085,rate:1.1,pan:i.pan,ens:i.ens}),
+  cuica:(t,c,v,i)=>hit(c==="h"?"d:G5":"d:Gb5",t,v*0.75,{dur:c==="h"?0.25:0.35,pan:i.pan}),
+  pandeiro:(t,c,v,i)=>{
+    if(c==="l"){ hit("d:E4",t,v*0.8,{rate:0.82,dur:0.3,pan:i.pan}); return hit("d:Gb3",t,v*0.12,{dur:0.08,pan:i.pan}); }
+    if(c==="h"){ hit("d:D4",t,v*0.55,{rate:1.1,pan:i.pan}); return hit("d:Gb3",t,v*0.4,{dur:0.12,pan:i.pan}); }
+    return hit("d:Gb3",t,v*0.26,{dur:0.07,pan:i.pan}); },
+  cavaco:(t,c,v,i)=>chordS("cav",i.chord,67,t,v*0.3,{dur:0.2,pan:i.pan},0.012),
+  guitar:(t,c,v,i)=>chordS("gtr",i.chord,57,t,v*0.32,{dur:Math.min(0.9,i.gap*i.sd*0.95),pan:i.pan},0.014),
+  piano:(t,c,v,i)=>{ const d=Math.min(1.2,i.gap*i.sd*0.95); chordS("pno",i.chord,64,t,v*0.3,{dur:d,pan:i.pan}); return chordS("pno",i.chord,76,t,v*0.18,{dur:d,pan:i.pan}); },
+  brass:(t,c,v,i)=>chordS("brs",i.chord,67,t,v*0.32,{dur:c==="o"?Math.min(0.8,i.gap*i.sd):0.16,pan:i.pan}),
+  accordion:(t,c,v,i)=>chordS("acc",i.chord,64,t,v*0.26,{dur:Math.min(0.32,i.gap*i.sd*0.8),pan:i.pan}),
+  bandoneon:(t,c,v,i)=>chordS("acc",i.chord,57,t,v*(c==="o"?0.36:0.28),{dur:Math.min(0.3,i.gap*i.sd*0.8),rate:1,pan:i.pan}),
+  bass:(t,c,v,i)=>{ const off = BASS_OFF(i.chord)[c] ?? 0; let r=i.chord.root; if(r>7) r-=12; return pitched("bas",40+r+off,t,v*0.9,{dur:Math.min(1.1,i.gap*i.sd*0.92),pan:0}); },
+  clave:(t,c,v,i)=>hit("d:Eb5",t,v*0.85,{pan:i.pan}),
+  rim:(t,c,v,i)=>hit("d:Db2",t,v*0.75,{dur:0.18,pan:i.pan}),
+  palitos:(t,c,v,i)=>hit("d:E5",t,v*(c==="o"?0.8:0.5),{rate:1.1,pan:i.pan}),
+  conga:(t,c,v,i)=>{
+    const m = {o:["d:Eb4",0.85,1],l:["d:E4",0.9,1],s:["d:D4",0.85,1.06],m:["d:D4",0.3,1],h:["d:E4",0.22,0.8],q:["d:Eb4",0.75,1.28]}[c] || ["d:D4",0.3,1];
+    return hit(m[0],t,v*m[1],{rate:m[2],dur:c==="h"?0.08:undefined,pan:i.pan}); },
+  bongo:(t,c,v,i)=>hit(c==="l"?"d:Db4":"d:C4",t,v*(c==="x"?0.5:0.85),{pan:i.pan}),
+  cowbell:(t,c,v,i)=>hit("d:Ab3",t,v*(c==="h"?0.7:0.45),{rate:c==="h"?1:0.82,pan:i.pan}),
+  timbale:(t,c,v,i)=>c==="c" ? hit("d:Db2",t,v*0.45,{rate:1.7,dur:0.07,pan:i.pan}) : hit("d:F4",t,v*0.8,{pan:i.pan}),
+  guiro:(t,c,v,i)=>hit(c==="L"?"d:D5":"d:Db5",t,v*0.75,{pan:i.pan}),
+  guira:(t,c,v,i)=>hit("d:A4",t,v*(c==="L"?0.7:0.5),{rate:c==="L"?0.85:1.15,pan:i.pan}),
+  maracas:(t,c,v,i)=>hit("d:Bb4",t,v*(c==="o"?0.7:0.42),{pan:i.pan}),
+  hat:(t,c,v,i)=>c==="o" ? hit("d:Bb2",t,v*0.5,{dur:0.3,pan:i.pan}) : hit("d:Gb2",t,v*0.5,{dur:0.12,pan:i.pan}),
+  kick:(t,c,v,i)=>hit("d:C2",t,v*1.0,{}),
+  snare:(t,c,v,i)=>hit("d:E2",t,v*0.8,{pan:i.pan}),
+  tambora:(t,c,v,i)=>c==="o" ? hit("d:G2",t,v*0.8,{rate:1.15,dur:0.4,pan:i.pan}) : c==="s" ? hit("d:D4",t,v*0.7,{rate:0.8,pan:i.pan}) : hit("d:Db2",t,v*0.55,{rate:1.2,dur:0.12,pan:i.pan}),
+  llamador:(t,c,v,i)=>hit("d:E4",t,v*0.85,{rate:0.75,pan:i.pan}),
+};
+function surdoS(t,c,v,i,rate){
+  if(c==="m") return hit("d:F2",t,v*0.55,{rate:rate*1.05,dur:0.12,pan:i.pan,ens:i.ens});
+  // 録音の太鼓に、体に響く低音を少し重ねる
+  tone(t,{f:rate*95,f2:rate*80,dur:0.5,vol:0.35*v,pt:0.06});
+  return hit("d:F2",t,v*(c==="x"?0.6:1),{rate,dur:0.9,pan:i.pan,ens:i.ens});
+}
+Object.keys(SMAP).forEach(id=>{
+  const orig = INST[id].play;
+  INST[id].play = (t,c,v,info)=>{
+    info = info||{};
+    if(info.ens==null) info.ens = ENS[id]||1;
+    let ok = false;
+    try{ ok = SMAP[id](t,c,v,info); }catch(e){ ok = false; }
+    if(!ok) orig(t,c,v,info);
+  };
+});
+/* 指揮者の笛（アピート） */
+function whistleCall(t,sd){
+  const beat = sd*4;
+  hit("d:B4",t,0.55,{pan:0}); hit("d:B4",t+beat*0.5,0.55,{}); hit("d:B4",t+beat,0.55,{}); hit("d:C5",t+beat*1.5,0.6,{});
+}
 
 /* ================================================================
    2. データ（サンバの各パート、各ジャンルのリズム）
@@ -791,14 +908,20 @@ function scheduleStep(){
   if(g.swing && i%2===1) t += sd*0.36*g.swing;
   const bar = Math.floor(P.total/(g.barSteps||8));
   const chord = parseChord(g.prog ? g.prog[bar%g.prog.length] : "C");
-  for(const tr of g.tracks){
-    if(!tr.on) continue;
+  const n = g.tracks.length;
+  if(g.onStep) g.onStep(i,t,P.total,sd);
+  g.tracks.forEach((tr,ti)=>{
+    if(!tr.on) return;
     const c = tr.p[i];
-    if(!c || c===".") continue;
+    if(!c || c===".") return;
     let gap = 1; while(gap<8 && (tr.p[(i+gap)%STEPS]||".")===".") gap++;
-    try{ INST[tr.inst].play(t,c,tr.vol??0.8,{chord,sd,gap}); }catch(e){ console.warn(e); }
-    if(g.onHit) g.onHit(tr,c,t);
-  }
+    // 人間らしさ：ほんの少しのタイミングと強さのゆれ、楽器ごとに左右へ配置
+    const ht = t + (Math.random()-0.5)*0.008;
+    const hv = (tr.vol??0.8)*(0.88+Math.random()*0.22);
+    const pan = tr.pan ?? (n>1 ? ((ti/(n-1))-0.5)*0.8 : 0);
+    try{ INST[tr.inst].play(ht,c,hv,{chord,sd,gap,pan}); }catch(e){ console.warn(e); }
+    if(g.onHit) g.onHit(tr,c,ht);
+  });
   P.q.push({i,t,grid:P.grid,chord:chord.name,alt:P.alt?P.altIdx:null});
   P.next += sd; P.step = (i+1)%STEPS; P.total++;
 }
@@ -1556,61 +1679,111 @@ function makePerformer(tr,idx,opt){
   return p;
 }
 
-/* ---- カーニバルの大通り ---- */
-function buildAvenue(){
-  const T = THREE, av = new T.Group();
-  const cv = document.createElement("canvas"); cv.width = 64; cv.height = 256;
-  const c2 = cv.getContext("2d");
-  c2.fillStyle = "#3a3640"; c2.fillRect(0,0,64,256);
-  for(let i=0;i<500;i++){ c2.fillStyle = `rgba(255,255,255,${Math.random()*0.06})`; c2.fillRect(Math.random()*64,Math.random()*256,1.5,1.5); }
-  c2.fillStyle = "#f4f1ea"; c2.fillRect(2,0,2,256); c2.fillRect(60,0,2,256);
-  c2.fillStyle = "#f2c14e"; c2.fillRect(30,0,4,110);
-  const tex = new T.CanvasTexture(cv); tex.wrapS = tex.wrapT = T.RepeatWrapping; tex.repeat.set(1,12);
-  const road = new T.Mesh(new T.PlaneGeometry(13,140),new T.MeshStandardMaterial({map:tex,roughness:0.85}));
-  road.rotation.x = -Math.PI/2; road.position.z = -40; road.receiveShadow = true; av.add(road);
-  const side = new T.Mesh(new T.PlaneGeometry(60,140),new T.MeshStandardMaterial({color:0x2a2235,roughness:1}));
-  side.rotation.x = -Math.PI/2; side.position.set(0,-0.01,-40); av.add(side);
-  // 観客席と電飾は「タイル」をくり返して流す
-  const L = 24, tiles = [];
-  const crowdCols = [0xe9473f,0xf2c14e,0x2fb39a,0x3a7bd5,0xf4f1ea,0xd94ea0,0x8bc34a,0xff8a3d];
-  const skinCols = SKINS;
+/* ---- リオの街並み（ブロコ＝街を練り歩くカーニバル隊） ---- */
+function canvasTex(w,hh,draw){ const cv = document.createElement("canvas"); cv.width = w; cv.height = hh; draw(cv.getContext("2d"),w,hh); const t = new THREE.CanvasTexture(cv); t.wrapS = t.wrapT = THREE.RepeatWrapping; return t; }
+const FACADE_COLS = ["#f2c14e","#4fa3d1","#e98ab0","#7cc48f","#f4f1ea","#f08a4b","#9b7fd1","#e9473f"];
+function facadeTex(col){
+  return canvasTex(128,160,(c,w,hh)=>{
+    c.fillStyle = col; c.fillRect(0,0,w,hh);
+    c.fillStyle = "rgba(255,255,255,.55)"; c.fillRect(0,0,w,8); c.fillRect(0,hh-6,w,6);
+    // 窓とよろい戸
+    c.fillStyle = "#2e3a48"; c.fillRect(40,34,48,82);
+    c.fillStyle = "rgba(255,255,255,.85)"; c.fillRect(36,30,56,5); c.fillRect(36,116,56,5); c.fillRect(36,30,5,90); c.fillRect(87,30,5,90);
+    c.fillStyle = ["#2f7a5c","#2b5d8a","#7a3b2e"][col.length%3]; c.fillRect(18,36,18,80); c.fillRect(92,36,18,80);
+    c.strokeStyle = "rgba(0,0,0,.25)"; for(let y=40;y<116;y+=6){ c.beginPath(); c.moveTo(18,y); c.lineTo(36,y); c.moveTo(92,y); c.lineTo(110,y); c.stroke(); }
+    // バルコニーの手すり
+    c.fillStyle = "#1e2126"; c.fillRect(30,118,68,4); for(let x=32;x<98;x+=6) c.fillRect(x,122,2,22); c.fillRect(30,142,68,3);
+  });
+}
+function buildStreet(){
+  const T = THREE, st = new T.Group();
+  const cobble = canvasTex(128,128,(c,w,hh)=>{ c.fillStyle="#6d6a66"; c.fillRect(0,0,w,hh); for(let y=0;y<hh;y+=16) for(let x=(y/16%2)*10;x<w+20;x+=20){ const g=110+Math.random()*50|0; c.fillStyle=`rgb(${g},${g-6},${g-12})`; c.beginPath(); c.roundRect ? c.roundRect(x-9,y+1,18,14,4) : c.rect(x-9,y+1,18,14); c.fill(); } });
+  cobble.repeat.set(7/1.6,160/1.6);
+  // コパカバーナで有名な、白黒の波模様の石畳（カルサダォン）
+  const calcada = canvasTex(128,128,(c,w,hh)=>{ c.fillStyle="#f3f0e8"; c.fillRect(0,0,w,hh); c.fillStyle="#1d1d1f";
+    for(const cx of [32,96]){ c.beginPath(); for(let y=0;y<=hh;y+=2) c.lineTo(cx+Math.sin(y/hh*Math.PI*2)*18-9,y); for(let y=hh;y>=0;y-=2) c.lineTo(cx+Math.sin(y/hh*Math.PI*2)*18+9,y); c.closePath(); c.fill(); } });
+  calcada.repeat.set(1,160/2.4);
+  const road = new T.Mesh(new T.PlaneGeometry(7,160),new T.MeshStandardMaterial({map:cobble,roughness:0.95}));
+  road.rotation.x = -Math.PI/2; road.position.z = -45; road.receiveShadow = true; st.add(road);
+  const walks = [];
+  for(const s of [-1,1]){
+    const w = new T.Mesh(new T.BoxGeometry(2.4,0.12,160),[0,1,2,3,4,5].map(k=>new T.MeshStandardMaterial(k===2?{map:calcada,roughness:0.9}:{color:0xd9d4c8,roughness:0.9})));
+    w.position.set(s*4.7,0.06,-45); w.receiveShadow = true; st.add(w); walks.push(w);
+  }
+  // 遠くの山（ポン・ジ・アスーカル風）
+  const hill = new T.MeshStandardMaterial({color:0x5f7d63,roughness:1});
+  [[-16,24,9,-95],[-30,13,7,-90],[22,16,14,-100]].forEach(([x,hgt,r,z])=>{ const m = new T.Mesh(new T.SphereGeometry(1,24,16),hill); m.scale.set(r,hgt,r*0.9); m.position.set(x,0,z); st.add(m); });
+  const L = 30, tiles = [], crowds = [];
+  const cols = [0xe9473f,0xf2c14e,0x2fb39a,0x3a7bd5,0xf4f1ea,0xd94ea0,0x8bc34a,0xff8a3d];
+  const facadeMats = FACADE_COLS.map(c=>{ const tx = facadeTex(c); return {tx,c}; });
+  const flagGeo = GG("flag",()=>{ const g = new T.BufferGeometry(); g.setAttribute("position",new T.BufferAttribute(new Float32Array([0,0,0, 0.26,0,0, 0.13,-0.32,0]),3)); g.computeVertexNormals(); return g; });
   for(let k=0;k<4;k++){
-    const tile = new T.Group(); tile.position.z = -k*L + L;
+    const tile = new T.Group(); tile.position.z = L - k*L;
     for(const s of [-1,1]){
-      for(let st=0;st<4;st++) tile.add(at(new T.Mesh(GG(`step${st}`,()=>new T.BoxGeometry(2.2,0.45+st*0.45,L)),new T.MeshStandardMaterial({color:st%2?0x4b3f63:0x564a70,roughness:0.9})),s*(7.6+st*1.5),(0.45+st*0.45)/2,0));
-      const n = 4*22;
-      const bodies = new T.InstancedMesh(GG("cb",()=>new T.CylinderGeometry(0.17,0.2,0.6,8)),new T.MeshStandardMaterial({roughness:0.8}),n);
+      // 建物
+      let z = -L/2;
+      while(z < L/2-1){
+        const wdt = 3.2+Math.random()*2.4, hgt = 7.2+Math.floor(Math.random()*3)*2.4, dep = 4;
+        const fm = facadeMats[(Math.random()*facadeMats.length)|0];
+        const tx = fm.tx.clone(); tx.needsUpdate = true; tx.repeat.set(Math.max(1,Math.round(wdt/2.4)),hgt/2.4);
+        const face = new T.MeshStandardMaterial({map:tx,roughness:0.85}), plain = new T.MeshStandardMaterial({color:fm.c,roughness:0.9});
+        const mats = [plain,plain,new T.MeshStandardMaterial({color:0x9a6b4f,roughness:0.9}),plain,plain,plain];
+        mats[s>0?1:0] = face;
+        const bld = new T.Mesh(new T.BoxGeometry(dep,hgt,wdt),mats);
+        bld.position.set(s*(5.9+dep/2),hgt/2,z+wdt/2); bld.castShadow = false; bld.receiveShadow = true; tile.add(bld);
+        const cor = new T.Mesh(GG("cor",()=>new T.BoxGeometry(0.3,0.25,1)),new T.MeshStandardMaterial({color:0xf4f1ea,roughness:0.6}));
+        cor.scale.z = wdt; cor.position.set(s*5.95,hgt-0.1,z+wdt/2); tile.add(cor);
+        z += wdt + 0.05;
+      }
+      // 歩道の見物人
+      const n = 2*16;
+      const bodies = new T.InstancedMesh(GG("cb",()=>new T.CylinderGeometry(0.17,0.2,0.75,8)),new T.MeshStandardMaterial({roughness:0.8}),n);
       const heads = new T.InstancedMesh(GG("ch",()=>new T.SphereGeometry(0.12,8,6)),new T.MeshStandardMaterial({roughness:0.7}),n);
       const m4 = new T.Matrix4(), col = new T.Color();
       let q = 0;
-      for(let st=0;st<4;st++) for(let i=0;i<22;i++){
-        const x = s*(7.6+st*1.5) + (Math.random()-0.5)*0.9, y = 0.45+st*0.45, z = -L/2 + (i+0.5)*L/22 + (Math.random()-0.5)*0.3;
-        m4.makeTranslation(x,y+0.3,z); bodies.setMatrixAt(q,m4); bodies.setColorAt(q,col.setHex(crowdCols[(Math.random()*crowdCols.length)|0]));
-        m4.makeTranslation(x,y+0.72,z); heads.setMatrixAt(q,m4); heads.setColorAt(q,col.setHex(skinCols[(Math.random()*skinCols.length)|0]));
+      for(let r=0;r<2;r++) for(let i=0;i<16;i++){
+        const x = s*(4.2+r*0.7+(Math.random()-0.5)*0.3), zz = -L/2 + (i+0.5)*L/16 + (Math.random()-0.5)*0.6;
+        m4.makeTranslation(x,0.5,zz); bodies.setMatrixAt(q,m4); bodies.setColorAt(q,col.setHex(cols[(Math.random()*cols.length)|0]));
+        m4.makeTranslation(x,1.02,zz); heads.setMatrixAt(q,m4); heads.setColorAt(q,col.setHex(SKINS[(Math.random()*SKINS.length)|0]));
         q++;
       }
-      tile.add(bodies,heads);
-      // 電柱
-      for(const z of [-L/4,L/4]) tile.add(at(new T.Mesh(GG("pole",()=>new T.CylinderGeometry(0.05,0.06,5.2,8)),new T.MeshStandardMaterial({color:0x22252b,roughness:0.5,metalness:0.6})),s*6.8,2.6,z));
+      const crowd = new T.Group(); crowd.add(bodies,heads); tile.add(crowd); crowds.push(crowd);
+      // 街灯とヤシの木
+      const lamp = new T.Group();
+      lamp.add(at(new T.Mesh(GG("lp",()=>new T.CylinderGeometry(0.05,0.07,3.6,8)),new T.MeshStandardMaterial({color:0x1e2126,roughness:0.5,metalness:0.5})),0,1.8,0));
+      lamp.add(at(new T.Mesh(GG("ll",()=>new T.BoxGeometry(0.25,0.35,0.25)),new T.MeshStandardMaterial({color:0xfff2c2,emissive:0x665522})),0,3.75,0));
+      tile.add(at(lamp,s*3.65,0,-L/4));
+      const palm = new T.Group();
+      palm.add(at(new T.Mesh(GG("tr",()=>new T.CylinderGeometry(0.1,0.17,5,8)),new T.MeshStandardMaterial({color:0x8a6a48,roughness:1})),0,2.5,0,0,0,s*0.06));
+      for(let i=0;i<8;i++){ const lf = new T.Mesh(GG("lf",()=>new T.BoxGeometry(0.28,0.03,1.8)),new T.MeshStandardMaterial({color:0x3f8f3a,roughness:0.8})); const piv = new T.Group(); piv.position.set(s*0.15,5,0); piv.rotation.y = i/8*Math.PI*2; lf.position.z = 0.8; lf.rotation.x = 0.45; piv.add(lf); palm.add(piv); }
+      tile.add(at(palm,s*4.6,0,L/4));
     }
-    // 道の上の電飾
-    for(const z of [-L/4,L/4]){
-      const nb = 22, bulbs = new T.InstancedMesh(GG("bulb",()=>new T.SphereGeometry(0.07,8,6)),new T.MeshBasicMaterial(),nb);
-      const m4 = new T.Matrix4(), col = new T.Color();
-      for(let i=0;i<nb;i++){ const t = i/(nb-1), x = -6.8+t*13.6, y = 5.0-Math.sin(t*Math.PI)*1.1; m4.makeTranslation(x,y,z); bulbs.setMatrixAt(i,m4); bulbs.setColorAt(i,col.setHex(crowdCols[i%crowdCols.length])); }
-      tile.add(bulbs);
-    }
-    av.add(tile); tiles.push(tile);
+    // 道の上の旗飾り（バンデイリーニャ）
+    const nf = 4*26, flags = new T.InstancedMesh(flagGeo,new T.MeshStandardMaterial({side:T.DoubleSide,roughness:0.7}),nf);
+    const m4 = new T.Matrix4(), col = new T.Color(); let q = 0;
+    for(let r=0;r<4;r++){ const zz = -L/2 + (r+0.5)*L/4; for(let i=0;i<26;i++){ const t = i/25, x = -5.9+t*11.8, y = 6.6-Math.sin(t*Math.PI)*0.9; m4.makeTranslation(x,y,zz); flags.setMatrixAt(q,m4); flags.setColorAt(q,col.setHex(cols[(i+r)%cols.length])); q++; } }
+    tile.add(flags);
+    st.add(tile); tiles.push(tile);
   }
   // 紙吹雪
-  const NC = 500, pos = new Float32Array(NC*3), colA = new Float32Array(NC*3), col = new T.Color();
-  for(let i=0;i<NC;i++){ pos[i*3]=(Math.random()-0.5)*16; pos[i*3+1]=Math.random()*7; pos[i*3+2]=(Math.random()-0.5)*20; col.setHex(crowdCols[i%crowdCols.length]); colA.set([col.r,col.g,col.b],i*3); }
+  const NC = 450, pos = new Float32Array(NC*3), colA = new Float32Array(NC*3), cc = new T.Color();
+  for(let i=0;i<NC;i++){ pos[i*3]=(Math.random()-0.5)*9; pos[i*3+1]=Math.random()*6; pos[i*3+2]=(Math.random()-0.5)*20; cc.setHex(cols[i%cols.length]); colA.set([cc.r,cc.g,cc.b],i*3); }
   const cg = new T.BufferGeometry(); cg.setAttribute("position",new T.BufferAttribute(pos,3)); cg.setAttribute("color",new T.BufferAttribute(colA,3));
-  const conf = new T.Points(cg,new T.PointsMaterial({size:0.09,vertexColors:true}));
-  av.add(conf);
-  return {group:av,tex,tiles,L,conf};
+  const conf = new T.Points(cg,new T.PointsMaterial({size:0.08,vertexColors:true}));
+  st.add(conf);
+  return {group:st,texs:[cobble,calcada],tiles,L,conf,crowds};
 }
-
+/* 後ろについて踊りながら歩く人たち（フォリオン） */
+function buildFollowers(backZ){
+  const T = THREE, n = 42, g = new T.Group();
+  const bodies = new T.InstancedMesh(GG("fb",()=>new T.CylinderGeometry(0.16,0.19,0.8,8)),new T.MeshStandardMaterial({roughness:0.7}),n);
+  const heads = new T.InstancedMesh(GG("fh",()=>new T.SphereGeometry(0.115,10,8)),new T.MeshStandardMaterial({roughness:0.7}),n);
+  const cols = [0xe9473f,0xf2c14e,0x2fb39a,0x3a7bd5,0xf4f1ea,0xd94ea0,0x8bc34a,0xff8a3d], col = new T.Color();
+  const pts = [];
+  for(let i=0;i<n;i++){ pts.push({x:(Math.random()-0.5)*6,z:backZ-1-Math.random()*7,ph:Math.random()*6}); bodies.setColorAt(i,col.setHex(cols[i%cols.length])); heads.setColorAt(i,col.setHex(SKINS[i%SKINS.length])); }
+  bodies.castShadow = true; g.add(bodies,heads);
+  return {g,bodies,heads,pts,m4:new T.Matrix4()};
+}
 /* ---- 初期化 ---- */
 function initStage(){
   if(Stage.ready) return true;
@@ -1668,7 +1841,7 @@ function fitCamera(snap){
   const vt = Math.tan(cam.fov*Math.PI/360), ht = vt*cam.aspect;
   if(Stage.parade){
     const d = Math.max((L.width/2+1.2)/ht, 3.2/vt) + 1.5;
-    Stage.defPos.set(0, d*0.5+1.0, L.front + d*0.82);
+    Stage.defPos.set(d*0.2, d*0.3+1.3, L.front + d*0.85);
     Stage.defTgt.set(0, 0.6, L.center+1.2);
   } else {
     const d = Math.max((L.width/2+0.6)/ht, 2.0/vt) + L.depth*0.3;
@@ -1686,15 +1859,17 @@ function clearLineup(){
 function setEnvironment(){
   const T = THREE, par = Stage.parade;
   Stage.floor.visible = !par;
-  if(par && !Stage.avenue){ Stage.avenue = buildAvenue(); Stage.world.add(Stage.avenue.group); }
-  if(Stage.avenue) Stage.avenue.group.visible = par;
-  Stage.scene.background = par ? new T.Color(0x1a1233) : null;
-  Stage.scene.fog = par ? new T.Fog(0x1a1233,22,70) : null;
-  Stage.hemi.color.setHex(par?0xb9a8ff:0xffffff); Stage.hemi.groundColor.setHex(par?0x3a2a40:0x606a78);
-  Stage.hemi.intensity = par?0.7:0.75;
-  Stage.dl.color.setHex(par?0xffe2b8:0xffffff);
+  if(par && !Stage.street){ Stage.street = buildStreet(); Stage.world.add(Stage.street.group); }
+  if(Stage.street) Stage.street.group.visible = par;
+  Stage.scene.background = par ? new T.Color(0x9fd6f2) : null;
+  Stage.scene.fog = par ? new T.Fog(0x9fd6f2,28,120) : null;
+  Stage.hemi.color.setHex(par?0xd6eeff:0xffffff); Stage.hemi.groundColor.setHex(par?0x9b8b6a:0x606a78);
+  Stage.hemi.intensity = par?0.8:0.75;
+  Stage.dl.color.setHex(par?0xfff0d6:0xffffff); Stage.dl.intensity = par?1.1:0.95;
+  const sc = Stage.dl.shadow.camera, ext = par?13:9;
+  Object.assign(sc,{left:-ext,right:ext,top:ext,bottom:-ext}); sc.updateProjectionMatrix();
   Stage.floorMat.color.set(cssVar("--surface"));
-  stView.classList.toggle("night",par);
+  stView.classList.toggle("street",par);
 }
 
 function buildLineup(genreId){
@@ -1709,7 +1884,8 @@ function buildLineup(genreId){
     const tracks = g.tracks.map(t=>({...t,on:true}));
     Stage.muted = tracks.map(()=>false);
     Stage.groove = {bpm:g._bpm,spb:g.spb,barSteps:g.barSteps,swing:g.swing,prog:g.prog,showChord:g.showChord,tracks,
-      onHit(tr,c,t){ const list = Stage.byTrack && Stage.byTrack.get(tr); if(list) list.forEach(p=>p.hits.push({t,s:hitStrength(p,c)})); }};
+      onHit(tr,c,t){ const list = Stage.byTrack && Stage.byTrack.get(tr); if(list) list.forEach(p=>p.hits.push({t,s:hitStrength(p,c)})); },
+      onStep(i,t,total,sd){ if(Stage.parade && total%128===0){ whistleCall(t,sd); Stage.whistleAt = t; } }};
     if(wasPlaying) swapGroove(Stage.groove,stPat);
   }
   document.querySelectorAll("#stage-genres .gchip").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.id===genreId)));
@@ -1751,6 +1927,9 @@ function buildLineup(genreId){
       Stage.lineup.add(d.g); Stage.extras.push({...d,kind:"passista",phase:x});
     }
     Stage.layout = {width:Math.max(W*sp,4.2),depth:order.length*dz,front:3.6,center:-(order.length-1)*dz/2};
+    const backZ = -(order.length-1)*dz;
+    Stage.followers = buildFollowers(backZ); Stage.lineup.add(Stage.followers.g);
+    Stage.dl.position.set(5,12,Stage.layout.center+7); Stage.dl.target.position.set(0,0,Stage.layout.center);
   } else {
     const R = Math.ceil(tracks.length/4), per = Math.ceil(tracks.length/R);
     const rows = []; for(let r=0;r<R;r++) rows.push(order.slice(r*per,(r+1)*per));
@@ -1765,6 +1944,8 @@ function buildLineup(genreId){
     });
     Stage.perf.sort((a,b)=>a.idx-b.idx);
     Stage.layout = {width:maxW,depth:(R-1)*dz+1.2,front:1,center:0};
+    Stage.followers = null;
+    Stage.dl.position.set(4,10,7); Stage.dl.target.position.set(0,0,0);
   }
   Stage.main = new Map(Stage.perf.filter(p=>!p.clone).map(p=>[p.idx,p]));
   fitCamera(true);
@@ -1804,7 +1985,7 @@ function renderSide(){
     stSide.append(
       h("div",{},h("h3",{},g.name),h("p",{class:"sub"},g.orig+"・"+g.region+"・"+g.era)),
       h("p",{class:"clue"},g.clue),
-      ...[g.id==="samba" ? h("p",{class:"sub"},Stage.parade?"カーニバルの行進中。再生すると、拍に合わせて歩きます。先頭は指揮者のメストレとダンサーのパシスタ。":"下の「カーニバル」を押すと、リオのカーニバルの行進が見られます。") : null].filter(Boolean),
+      ...[g.id==="samba" ? h("p",{class:"sub"},Stage.parade?"リオの街を練り歩く「ブロコ」（街のカーニバル隊）。再生すると拍に合わせて行進し、先頭の指揮者メストレが笛（アピート）で合図します。後ろには踊りながらついていく人たち。":"下の「カーニバル」を押すと、リオの街をサンバ隊が練り歩く様子が見られます。") : null].filter(Boolean),
       h("p",{class:"sub"},"演奏者をタップすると、リズムと楽器の詳しい情報が見られます。"),
       h("div",{class:"perf-chips"},Stage.groove.tracks.map((t,i)=>h("button",{class:"gchip",style:`--fc:var(--c-${INST[t.inst].fam})`,onclick(){ selectPerformer(i); }},h("i"),t.name))));
     if(P.playing && P.btn===stT.btn) setNow(stPat,null);
@@ -1896,7 +2077,8 @@ function stageLoop(tm){
     const ph = beat*Math.PI;
     if(x.kind==="mestre"){
       const a = Math.sin(ph);
-      armPose(x.armR,playing?-1.6-0.6*Math.max(0,a):-0.2,playing?-0.6:-0.2,0.2); armPose(x.armL,playing?-0.9:-0.2,playing?-1.2-0.3*Math.max(0,-a):-0.2,-0.2);
+      const wh = Stage.whistleAt!=null && now>=Stage.whistleAt && now-Stage.whistleAt<1.4;
+      armPose(x.armR,wh?-2.9:playing?-1.6-0.6*Math.max(0,a):-0.2,wh?-0.2:playing?-0.6:-0.2,0.2); armPose(x.armL,playing?-0.9:-0.2,playing?-1.2-0.3*Math.max(0,-a):-0.2,-0.2);
       if(walk){ x.legs[0].hip.rotation.x = 0.35*a; x.legs[1].hip.rotation.x = -0.35*a; x.legs[0].knee.rotation.x = 0.4*Math.max(0,-Math.cos(ph)); x.legs[1].knee.rotation.x = 0.4*Math.max(0,Math.cos(ph)); }
       else x.legs.forEach(l=>{ l.hip.rotation.x = 0; l.knee.rotation.x = 0; });
     } else {
@@ -1908,18 +2090,29 @@ function stageLoop(tm){
       x.g.position.y = playing ? 0.03*Math.abs(a) : 0;
     }
   });
-  // 大通りを流す（行進の速さ＝テンポ）
-  if(Stage.parade && Stage.avenue){
-    const av = Stage.avenue, speed = walk ? 0.55*bpm/60 : 0;
-    av.tex.offset.y -= speed*dtF/(140/12);
-    av.tiles.forEach(t=>{ t.position.z -= speed*dtF; if(t.position.z < -3*av.L+av.L) t.position.z += 4*av.L; });
-    const pos = av.conf.geometry.attributes.position;
+  // 街を流す（歩く速さ＝テンポ）
+  if(Stage.parade && Stage.street){
+    const st = Stage.street, speed = walk ? 0.55*bpm/60 : 0;
+    st.texs[0].offset.y -= speed*dtF/1.6; st.texs[1].offset.y -= speed*dtF/2.4;
+    st.tiles.forEach(t=>{ t.position.z -= speed*dtF; if(t.position.z < -2*st.L) t.position.z += 4*st.L; });
+    const bounce = playing ? 0.06*Math.abs(Math.sin(beat*Math.PI)) : 0;
+    st.crowds.forEach((c,k)=>{ c.position.y = k%2 ? bounce : bounce*0.7; });
+    const pos = st.conf.geometry.attributes.position;
     for(let i=0;i<pos.count;i++){
-      let y = pos.getY(i) - dtF*(0.6+(i%7)*0.08), z = pos.getZ(i) - speed*dtF, x = pos.getX(i) + Math.sin(time*2+i)*0.004;
-      if(y<0){ y = 7; } if(z<-12) z += 22;
+      let y = pos.getY(i) - dtF*(0.5+(i%7)*0.08), z = pos.getZ(i) - speed*dtF, x = pos.getX(i) + Math.sin(time*2+i)*0.004;
+      if(y<0) y = 6; if(z<-14) z += 20;
       pos.setXYZ(i,x,y,z);
     }
     pos.needsUpdate = true;
+    const F = Stage.followers;
+    if(F){
+      F.pts.forEach((p,i)=>{
+        const b = playing ? Math.abs(Math.sin(beat*Math.PI+p.ph))*0.12 : 0;
+        F.m4.makeTranslation(p.x+Math.sin(time+p.ph)*0.08,0.5+b,p.z); F.bodies.setMatrixAt(i,F.m4);
+        F.m4.makeTranslation(p.x+Math.sin(time+p.ph)*0.08,1.02+b,p.z); F.heads.setMatrixAt(i,F.m4);
+      });
+      F.bodies.instanceMatrix.needsUpdate = true; F.heads.instanceMatrix.needsUpdate = true;
+    }
   }
   // カメラ：選んだ演奏者に寄る
   const tgtP = Stage.v.set(0,0,0), cam = Stage.cam;
