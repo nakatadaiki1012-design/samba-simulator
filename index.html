@@ -153,6 +153,42 @@ details.help > div{margin-top:8px;display:flex;flex-direction:column;gap:8px}
 .points li::before{content:"";position:absolute;left:4px;top:.72em;width:8px;height:8px;border-radius:2px;background:var(--hot);transform:rotate(45deg)}
 .note{font-size:12.5px;color:var(--muted)}
 
+/* compare */
+.vs{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:10px;align-items:center}
+.vs select{font-size:16px;font-weight:700;padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:var(--surface);width:100%}
+.vs-x{font-family:var(--f-display);color:var(--hot);font-size:18px}
+.ab-controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.ab-controls .btn{font-size:14px;padding:9px 16px}
+.ab-controls .btn[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.ab-now{font-size:13px;color:var(--muted);margin-left:4px}
+.ab-now b{color:var(--fg)}
+.diff{background:var(--surface);border-radius:14px;padding:16px 18px;display:flex;flex-direction:column;gap:14px}
+.diff h3{font-size:17px}
+.diff .points li{font-size:14.5px}
+.vs-table{width:100%;border-collapse:collapse;font-size:13.5px}
+.vs-table th,.vs-table td{padding:7px 8px;border-top:1px solid var(--line);text-align:left;vertical-align:top}
+.vs-table thead th{border-top:0;font-size:13px}
+.vs-table tbody th{color:var(--muted);font-weight:400;font-size:12.5px;white-space:nowrap;width:5.5em}
+.vs-table td.same{color:var(--muted)}
+.vs-wrap{overflow-x:auto}
+.tag{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:6px;background:var(--fg);color:var(--bg);font-family:var(--f-mono);font-size:12px;font-weight:500;flex:none}
+.tag.b{background:var(--hot);color:var(--hot-fg)}
+.ab-grids{display:grid;grid-template-columns:minmax(0,1fr);gap:14px}
+.ab-col{display:flex;flex-direction:column;gap:6px;min-width:0}
+.ab-label{display:flex;gap:8px;align-items:center;font-weight:700;font-size:15px}
+.ab-label span{font-weight:400;font-size:12.5px;color:var(--muted)}
+.ab-col.live .grid{box-shadow:0 0 0 2px var(--hot)}
+.role-list{background:var(--surface);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:8px}
+.role-row{display:grid;grid-template-columns:30px minmax(150px,210px) minmax(0,1fr);gap:10px;align-items:center;--fc:var(--accent)}
+.steps-host{min-width:0}
+.role-row .rname{line-height:1.3;min-width:0}
+.role-row .rname b{display:block;font-size:14px}
+.role-row .rname small{display:block;font-size:11.5px;color:var(--muted)}
+.role-row .none{font-size:12.5px;color:var(--muted)}
+.play.mini{min-width:0;width:30px;height:30px;padding:0;font-size:12px}
+.play.mini svg{width:10px;height:10px}
+@media (max-width:640px){.role-row{grid-template-columns:30px minmax(0,1fr)}.role-row .steps,.role-row .none{grid-column:1/-1}}
+
 /* clave */
 .clave-box{display:flex;flex-direction:column;gap:12px}
 
@@ -247,6 +283,27 @@ footer{margin-top:40px;color:var(--muted);font-size:12px;border-top:1px solid va
 
   <!-- ============ 違いを知る ============ -->
   <section class="panel" id="panel-compare" data-panel="compare" hidden>
+    <div class="sec-title"><h2>2つを聴き比べる</h2></div>
+    <p class="lead">よく比べられるペアを選ぶか、自分で2つ選んでください。「交互に聴く」を押すと、2周ずつ切り替わるので違いがはっきりわかります。</p>
+    <div class="chips" id="pair-pick"></div>
+    <div class="vs">
+      <select id="ab-a" aria-label="比べるジャンルA"></select>
+      <span class="vs-x">VS</span>
+      <select id="ab-b" aria-label="比べるジャンルB"></select>
+    </div>
+    <div class="ab-controls" id="ab-controls"></div>
+    <div class="diff" id="ab-diff"></div>
+    <div class="ab-grids">
+      <div class="ab-col"><div class="ab-label" id="ab-label-a"></div><div id="ab-grid-a" class="grid"></div></div>
+      <div class="ab-col"><div class="ab-label" id="ab-label-b"></div><div id="ab-grid-b" class="grid"></div></div>
+    </div>
+
+    <div class="sec-title"><h2>役割ごとに全ジャンルを比べる</h2></div>
+    <div class="chips" id="role-pick"></div>
+    <p class="lead" id="role-desc"></p>
+    <div class="role-list" id="role-list"></div>
+    <p class="note">横の長さはどれも2小節分です（レゲトンのみ1小節）。縦の細い区切りが拍です。</p>
+
     <div class="sec-title"><h2>カギになるリズム型「クラーベ」</h2></div>
     <p class="lead">キューバ系の音楽は、2小節で1周する「クラーベ」をすべての楽器の基準にします。音の数が3つと2つに分かれ、どちらから始めるかで「3-2」「2-3」と呼びます。</p>
     <div class="chips" id="clave-pick"></div>
@@ -637,6 +694,10 @@ const STEPS = 16;
 const P = {groove:null,grid:null,btn:null,chordEl:null,playing:false,step:0,total:0,next:0,timer:null,q:[]};
 
 function scheduleStep(){
+  if(P.alt && P.step===0 && P.total>0){
+    P.loops++;
+    if(P.loops%2===0){ P.altIdx=1-P.altIdx; P.groove=P.alt[P.altIdx].g; P.grid=P.alt[P.altIdx].grid; }
+  }
   const g = P.groove, i = P.step;
   const sd = 60/g.bpm/g.spb;
   let t = P.next;
@@ -650,7 +711,7 @@ function scheduleStep(){
     let gap = 1; while(gap<8 && (tr.p[(i+gap)%STEPS]||".")===".") gap++;
     try{ INST[tr.inst].play(t,c,tr.vol??0.8,{chord,sd,gap}); }catch(e){ console.warn(e); }
   }
-  P.q.push({i,t,grid:P.grid,chord:chord.name});
+  P.q.push({i,t,grid:P.grid,chord:chord.name,alt:P.alt?P.altIdx:null});
   P.next += sd; P.step = (i+1)%STEPS; P.total++;
 }
 function tick(){ while(P.next < ctx.currentTime + 0.12) scheduleStep(); }
@@ -659,7 +720,10 @@ function draw(){
   const now = ctx.currentTime;
   while(P.q.length && P.q[0].t <= now){
     const e = P.q.shift();
+    if(P.lastGrid && P.lastGrid!==e.grid) setNow(P.lastGrid,null);
+    P.lastGrid = e.grid;
     setNow(e.grid,e.i);
+    if(P.onAlt && e.alt!=null && e.alt!==P.shownAlt){ P.shownAlt=e.alt; P.onAlt(e.alt); }
     if(P.chordEl && P.groove.showChord) P.chordEl.innerHTML = "コード <b>"+e.chord+"</b>";
   }
   requestAnimationFrame(draw);
@@ -673,13 +737,16 @@ function setNow(grid,i){
 function setBtn(btn,on){
   if(!btn) return;
   btn.setAttribute("aria-pressed",String(on));
+  if(btn.classList.contains("mini")){ btn.innerHTML = on ? '<svg viewBox="0 0 10 10"><rect x="1" y="1" width="8" height="8" rx="1"/></svg>' : '<svg viewBox="0 0 10 10"><path d="M1.5 0.8 9.2 5 1.5 9.2z"/></svg>'; btn.setAttribute("aria-label",on?"停止":"再生"); return; }
+  if(btn.dataset.label){ btn.textContent = (on?"■ ":"▶ ")+btn.dataset.label; return; }
   btn.innerHTML = on ? '<svg viewBox="0 0 10 10"><rect x="1" y="1" width="8" height="8" rx="1"/></svg>停止'
                      : '<svg viewBox="0 0 10 10"><path d="M1.5 0.8 9.2 5 1.5 9.2z"/></svg>再生';
 }
-function play(groove,grid,btn,chordEl){
+function play(groove,grid,btn,chordEl,alt){
   ensureAudio();
   if(P.playing) stop();
-  Object.assign(P,{groove,grid,btn,chordEl,playing:true,step:0,total:0,q:[],next:ctx.currentTime+0.06});
+  Object.assign(P,{groove,grid,btn,chordEl,playing:true,step:0,total:0,q:[],next:ctx.currentTime+0.06,
+    alt:alt||null,altIdx:0,loops:0,lastGrid:null,shownAlt:null,onAlt:alt?alt.onAlt:null});
   setBtn(btn,true);
   P.timer = setInterval(tick,25); tick();
   requestAnimationFrame(draw);
@@ -687,7 +754,10 @@ function play(groove,grid,btn,chordEl){
 function stop(){
   if(!P.playing) return;
   clearInterval(P.timer); P.playing = false; P.q = [];
-  setNow(P.grid,null); setBtn(P.btn,false);
+  setNow(P.grid,null); if(P.lastGrid) setNow(P.lastGrid,null);
+  if(P.alt){ P.alt.forEach(a=>setNow(a.grid,null)); if(P.alt.onStop) P.alt.onStop(); }
+  document.querySelectorAll(".ab-col.live").forEach(c=>c.classList.remove("live"));
+  const abn = document.querySelector(".ab-now"); if(abn) abn.innerHTML = ""; setBtn(P.btn,false);
   if(P.chordEl) P.chordEl.textContent = "";
 }
 /* 再生中にリズムを差し替える（止めずに切り替え） */
@@ -939,6 +1009,174 @@ TREE.forEach(col=>{
   });
   tree.append(box);
 });
+
+
+/* ===== 2つを聴き比べる ===== */
+const PAIRS = [
+  {a:"samba",b:"bossa",t:"サンバ と ボサノバ",pts:[
+    "どちらも同じ2拍子の骨格。ボサノバは、サンバを「部屋の中で静かに演奏する」ために作り変えたものです。",
+    "サンバの低い太鼓（スルド）の役目を、ボサノバではバスドラムやギターの親指が担当します。",
+    "サンバの大きな打楽器隊が、ボサノバではリムの「カチッ」とギターのコードだけに減っています。",
+    "ボサノバはテンポが少し遅く、ジャズのような複雑な和音が主役です。"]},
+  {a:"son",b:"salsa",t:"ソン と サルサ",pts:[
+    "骨格はまったく同じです。クラーベ、1拍目を避ける「先取り」のベース、コンガのトゥンバオがそろっています。",
+    "サルサはソンの「都会版」。テンポがずっと速く、ピアノのモントゥーノとティンバレス、カウベルが加わります。",
+    "ソンはトレス（ギター）とボンゴが中心で、素朴でゆったりした音です。"]},
+  {a:"mambo",b:"salsa",t:"マンボ と サルサ",pts:[
+    "どちらもクラーベの上で演奏する、速いダンス音楽です。",
+    "マンボはビッグバンドのサックスとトランペットが「パッ！」と派手なキメを入れるのが主役です。1940〜50年代の音楽です。",
+    "サルサはもっと小さい編成です。ピアノのくり返し（モントゥーノ）と、歌と合唱の掛け合いが中心で、1960〜70年代のニューヨーク生まれです。"]},
+  {a:"mambo",b:"chacha",t:"マンボ と チャチャチャ",pts:[
+    "チャチャチャは、マンボをゆっくりにして踊りやすくしたものとも言えます。",
+    "チャチャチャの目印は4拍目の「チャ・チャ」という連打と、ギロの「ギーッ・チャチャ」です。",
+    "マンボはテンポが速く、ブラスが鋭く入るので、ずっと派手に聴こえます。"]},
+  {a:"rumba",b:"ballroom",t:"ルンバ（キューバ）と ルンバ（社交ダンス）",pts:[
+    "名前は同じでも、まったく別の音楽です。",
+    "キューバのルンバは太鼓と歌だけです。3台のコンガが会話するように叩き合い、ルンバ・クラーベを使います。",
+    "社交ダンスのルンバは、ソンやボレロ（恋の歌）から来たゆっくりで甘い曲です。ピアノなどの和音とメロディが主役です。",
+    "1930年代のアメリカで、キューバ風の音楽がまとめて「ルンバ」と呼ばれたことから、名前が混ざりました。"]},
+  {a:"samba",b:"salsa",t:"ブラジル（サンバ）と キューバ（サルサ）",pts:[
+    "細かさが違います。サンバは1拍を4つ（16分音符）に分けてシャカシャカ刻みます。サルサは1拍を2つ（8分音符）に分けるのが基本です。",
+    "低音の位置が違います。サンバは2拍目がドーンと重く、サルサのベースは1拍目を避けて「先取り」します。",
+    "サルサには2小節で1周するクラーベという絶対の基準があります。サンバではタンボリンのテレコテコが似た役目をします。",
+    "言葉も違います。ブラジルはポルトガル語、キューバやプエルトリコはスペイン語です。"]},
+  {a:"merengue",b:"cumbia",t:"メレンゲ と クンビア",pts:[
+    "どちらも2拍子で、アコーディオンと「こする楽器」を使う、似た顔ぶれの音楽です。",
+    "メレンゲはとても速く前のめりで、金属のグィラが休まず「シャカシャカ」と鳴り続けます。",
+    "クンビアはゆっくりです。低い太鼓が拍の裏だけに入るので、のんびり揺れるノリになります。"]},
+  {a:"tango",b:"reggaeton",t:"タンゴ と レゲトン",pts:[
+    "100年以上離れた、まったく違う音楽に見えます。でも、どちらにも「3+3+2」のリズムが出てきます。",
+    "タンゴは打楽器なしで、楽器全員が「ザッ・ザッ・ザッ・ザッ」と刻みます。ときどき3+3+2の区切りが入ります。",
+    "レゲトンは電子ドラムのスネアが、3+3+2（デンボウ）をずっと鳴らし続けます。",
+    "この3+3+2はキューバの「ハバネラ」がルーツで、ラテン音楽の共通の遺伝子です。"]},
+];
+const abSelA = document.getElementById("ab-a"), abSelB = document.getElementById("ab-b");
+[abSelA,abSelB].forEach(sel=>GENRES.forEach(g=>sel.append(h("option",{value:g.id},g.name))));
+const abGridA = document.getElementById("ab-grid-a"), abGridB = document.getElementById("ab-grid-b");
+const AB = {a:null,b:null};
+const abCtl = document.getElementById("ab-controls");
+const abBtnA = h("button",{class:"btn","data-label":"A を聴く","aria-pressed":"false"});
+const abBtnB = h("button",{class:"btn","data-label":"B を聴く","aria-pressed":"false"});
+const abBtnAlt = h("button",{class:"btn primary","data-label":"交互に聴く（2周ずつ）","aria-pressed":"false"});
+const abNow = h("span",{class:"ab-now"});
+[abBtnA,abBtnB,abBtnAlt].forEach(b=>setBtn(b,false));
+abCtl.append(abBtnA,abBtnB,abBtnAlt,abNow);
+function markLive(idx){
+  document.querySelectorAll(".ab-col").forEach((c,k)=>c.classList.toggle("live",k===idx));
+  const g = idx===0?AB.a:idx===1?AB.b:null;
+  abNow.innerHTML = g ? "いま鳴っているのは <b>"+(idx===0?"A":"B")+"："+g.name+"</b>" : "";
+}
+abBtnA.addEventListener("click",()=>{ if(P.playing&&P.btn===abBtnA){ stop(); return; } AB.a.bpm=AB.a._bpm; play(AB.a,abGridA,abBtnA,null); markLive(0); });
+abBtnB.addEventListener("click",()=>{ if(P.playing&&P.btn===abBtnB){ stop(); return; } AB.b.bpm=AB.b._bpm; play(AB.b,abGridB,abBtnB,null); markLive(1); });
+abBtnAlt.addEventListener("click",()=>{
+  if(P.playing&&P.btn===abBtnAlt){ stop(); return; }
+  AB.a.bpm=AB.a._bpm; AB.b.bpm=AB.b._bpm;
+  const alt = [{g:AB.a,grid:abGridA},{g:AB.b,grid:abGridB}];
+  alt.onAlt = markLive; alt.onStop = ()=>markLive(-1);
+  play(AB.a,abGridA,abBtnAlt,null,alt); markLive(0);
+});
+[abBtnA,abBtnB].forEach(b=>b.addEventListener("click",()=>{ if(!P.playing) markLive(-1); }));
+
+function autoPoints(a,b){
+  const pts = [];
+  if(a.grp===b.grp) pts.push(`どちらも「${a.grp}」系の音楽で、ルーツが近い仲間です。`);
+  else pts.push(`${a.name}は「${a.grp}」系、${b.name}は「${b.grp}」系。生まれた土地とルーツが違います。`);
+  const r = a._bpm/b._bpm;
+  if(r>1.15) pts.push(`${a.name}のほうがテンポが速めです。`);
+  else if(r<0.87) pts.push(`${b.name}のほうがテンポが速めです。`);
+  else pts.push("テンポはだいたい同じくらいです。");
+  if(a.spb!==b.spb){ const f=a.spb===4?a:b, e=a.spb===4?b:a; pts.push(`刻みの細かさが違います。${f.name}は1拍を4つ（16分音符）に、${e.name}は1拍を2つ（8分音符）に分けて刻みます。`); }
+  pts.push(`リズムの鍵は、${a.name}が「${a.key}」、${b.name}が「${b.key}」です。`);
+  const na = a.tracks.map(t=>t.name), nb = b.tracks.map(t=>t.name);
+  const oa = na.filter(n=>!nb.includes(n)), ob = nb.filter(n=>!na.includes(n)), both = na.filter(n=>nb.includes(n));
+  if(both.length) pts.push(`共通して使われている楽器：${both.join("、")}。`);
+  if(oa.length||ob.length) pts.push(`${a.name}だけにあるのは${oa.join("、")||"なし"}、${b.name}だけにあるのは${ob.join("、")||"なし"}です。`);
+  return pts;
+}
+function renderAB(){
+  stopIfAB();
+  AB.a = GENRE[abSelA.value]; AB.b = GENRE[abSelB.value];
+  const a = AB.a, b = AB.b;
+  const pair = PAIRS.find(p=>(p.a===a.id&&p.b===b.id)||(p.a===b.id&&p.b===a.id));
+  document.querySelectorAll("#pair-pick .gchip").forEach(c=>c.setAttribute("aria-pressed",String(pair&&c.dataset.id===pair.a+"-"+pair.b)));
+  const d = document.getElementById("ab-diff");
+  d.innerHTML = "";
+  if(a===b){ d.append(h("p",{},"同じジャンルが選ばれています。AかBを別のジャンルに変えてください。")); }
+  else {
+    d.append(h("h3",{},pair?pair.t+"：ここが違う":a.name+" と "+b.name+"：ここが違う"),
+      h("ul",{class:"points"},(pair?pair.pts:autoPoints(a,b)).map(x=>h("li",{},x))));
+  }
+  const rows = [["地域","region"],["時代","era"],["拍子","meter"],["テンポ","tempo"],["リズムの鍵","key"],["楽器","insts"]];
+  d.append(h("div",{class:"vs-wrap"},h("table",{class:"vs-table"},
+    h("thead",{},h("tr",{},h("th",{}),h("th",{},h("span",{class:"tag"},"A")," ",a.name),h("th",{},h("span",{class:"tag b"},"B")," ",b.name))),
+    h("tbody",{},rows.map(([k,f])=>{ const same=a[f]===b[f]; return h("tr",{},h("th",{scope:"row"},k),h("td",{class:same?"same":""},a[f]),h("td",{class:same?"same":""},b[f])); })))));
+  document.getElementById("ab-label-a").replaceChildren(h("span",{class:"tag"},"A"),a.name,h("span",{},"♩="+a._bpm));
+  document.getElementById("ab-label-b").replaceChildren(h("span",{class:"tag b"},"B"),b.name,h("span",{},"♩="+b._bpm));
+  buildGrid(abGridA,a,{key:"ab-a",rulerLabel:"拍"});
+  buildGrid(abGridB,b,{key:"ab-b",rulerLabel:"拍"});
+}
+function stopIfAB(){ if(P.playing && [abBtnA,abBtnB,abBtnAlt].includes(P.btn)) stop(); markLive(-1); }
+abSelA.addEventListener("change",renderAB); abSelB.addEventListener("change",renderAB);
+document.getElementById("pair-pick").append(...PAIRS.map(p=>h("button",{class:"gchip","data-id":p.a+"-"+p.b,"aria-pressed":"false",onclick(){ abSelA.value=p.a; abSelB.value=p.b; renderAB(); }},p.t)));
+abSelA.value = "samba"; abSelB.value = "bossa";
+renderAB();
+
+/* ===== 役割ごとに比べる ===== */
+const ROLES = [
+  {id:"bass",n:"低音：重さはどこ？",d:"低い音がどの拍で鳴るかで、体の揺れ方が決まります。サンバは2拍目がドーンと重い。ソン・マンボ・サルサのベースは1拍目を避けて先取りします。レゲトンは毎拍「ドン」と4つ打ちです。"},
+  {id:"spine",n:"背骨：らしさを決める型",d:"そのジャンルらしさを決めるリズムの型です。キューバ系はクラーベ、ボサノバはボサノバ・クラーベ、サンバはテレコテコ、レゲトンはデンボウ（3+3+2）、クンビアは裏拍の太鼓です。"},
+  {id:"pulse",n:"刻み：細かさとスピード感",d:"細かく刻む楽器でスピード感が決まります。サンバ・ボサノバ・メレンゲ・クンビアは1拍を4つに分ける16分音符、キューバ系は1拍を2つに分ける8分音符が基本です。タンゴには刻み専門の打楽器がありません。"},
+];
+const ROLE_PICK = {
+  samba:{bass:"スルド（1番）",spine:"タンボリン",pulse:"ショカリョ"},
+  bossa:{bass:"バスドラム",spine:"リム（クロススティック）",pulse:"シェイカー／ブラシ"},
+  son:{bass:"ベース",spine:"クラベス",pulse:"マラカス"},
+  mambo:{bass:"ベース",spine:"クラベス",pulse:"カウベル"},
+  chacha:{bass:"ベース",spine:"コンガ",pulse:"ギロ"},
+  rumba:{bass:"トゥンバ",spine:"クラベス",pulse:"パリートス"},
+  ballroom:{bass:"ベース",spine:"クラベス",pulse:"マラカス"},
+  salsa:{bass:"ベース",spine:"クラベス",pulse:"カウベル"},
+  merengue:{bass:"ベース",spine:"タンボーラ",pulse:"グィラ"},
+  cumbia:{bass:"ベース",spine:"リャマドール",pulse:"グァチャラカ"},
+  tango:{bass:"コントラバス",spine:"バンドネオン",pulse:null},
+  reggaeton:{bass:"バスドラム",spine:"スネア",pulse:"ハイハット"},
+};
+const rolePick = document.getElementById("role-pick");
+ROLES.forEach(r=>rolePick.append(h("button",{class:"gchip","data-id":r.id,"aria-pressed":"false",onclick(){ selectRole(r.id); }},r.n)));
+function selectRole(id){
+  if(P.playing && P.btn && P.btn.classList.contains("mini")) stop();
+  const role = ROLES.find(r=>r.id===id);
+  rolePick.querySelectorAll(".gchip").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.id===id)));
+  document.getElementById("role-desc").textContent = role.d;
+  const list = document.getElementById("role-list");
+  list.innerHTML = "";
+  GENRES.forEach(g=>{
+    const name = ROLE_PICK[g.id][id];
+    const tr = name && g.tracks.find(t=>t.name===name);
+    const row = h("div",{class:"role-row"});
+    if(!tr){
+      row.append(h("span"),h("div",{class:"rname"},h("b",{},g.name)),h("span",{class:"none"},"刻み専門の打楽器なし（楽器全員で刻む）"));
+      list.append(row); return;
+    }
+    const inst = INST[tr.inst], weak = inst.weak||["x","m"];
+    row.style.setProperty("--fc",`var(--c-${inst.fam})`);
+    const groove = {bpm:g._bpm,spb:g.spb,barSteps:g.barSteps,swing:g.swing,prog:g.prog,tracks:[{...tr,on:true}]};
+    const el = h("div",{class:"steps-host"});
+    el._cols = Array.from({length:STEPS},()=>[]); el._now = null;
+    el.append(stepsRow(groove,i=>{
+      const ch = tr.p[i], on = ch!==".";
+      const c = h("span",{class:"cell"+(i%g.spb===0?" b":"")+(on?" on":"")+(on&&weak.includes(ch)?" weak":"")},
+        on && ch!=="o" && ch!=="x" ? ((inst.glyph&&inst.glyph[ch])||GLYPH[ch]||ch) : "");
+      el._cols[i].push(c); return c;
+    }));
+    const btn = h("button",{class:"play mini","aria-pressed":"false"});
+    setBtn(btn,false);
+    btn.addEventListener("click",()=>{ if(P.playing&&P.btn===btn){ stop(); return; } play(groove,el,btn,null); });
+    row.append(btn,h("div",{class:"rname"},h("b",{},g.name),h("small",{},tr.name+"・♩="+g._bpm)),el);
+    list.append(row);
+  });
+}
+selectRole("bass");
 
 /* 比較表 */
 const cmp = document.getElementById("cmp");
